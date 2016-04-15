@@ -36,7 +36,7 @@ Example response:
   "updates":[
     {"id":"12345678","idType":"utr","formIds":[]},
     {"id":"10000000","idType":"utr","formIds":[]},
-    {"id":"10000001","idType":"utr","formIds":["SA316","SA326D","SA359","SS300","SA251","SA370","SA300","SA328D","SA309","R002A"]},
+    {"id":"10000001","idType":"utr","formIds":["ABC","123","XYZ"]},
     [...]
   ]
 }
