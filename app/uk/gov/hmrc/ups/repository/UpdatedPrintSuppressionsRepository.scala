@@ -49,7 +49,10 @@ class UpdatedPrintSuppressionsRepository(
   val counterRepo = repoCreator(date.toString("yyyyMMdd"))
 
   override def indexes: Seq[Index] =
-    Seq(Index(Seq("counter" -> IndexType.Ascending), name = Some("counterIdx"), unique = true, sparse = false))
+    Seq(
+      Index(Seq("counter" -> IndexType.Ascending), name = Some("counterIdx"), unique = true, sparse = false),
+      Index(Seq("printPreference.id" -> IndexType.Ascending, "printPreference.idType" -> IndexType.Ascending), name = Some("uniquePreferenceId"), unique = true, sparse = false)
+    )
 
   def find(offset: Long, limit: Int): Future[List[PrintPreference]] = {
 
@@ -64,8 +67,8 @@ class UpdatedPrintSuppressionsRepository(
     e.map(_.map(ups => ups.printPreference))
   }
 
-  def insert(stuff: PrintPreference)(implicit ec: ExecutionContext): Future[WriteResult] = {
-    counterRepo.next.flatMap(counter => super.insert(new UpdatedPrintSuppressions(BSONObjectID.generate, counter, stuff)))
+  def insert(printPreference: PrintPreference)(implicit ec: ExecutionContext): Future[WriteResult] = {
+    counterRepo.next.flatMap(counter => super.insert(new UpdatedPrintSuppressions(BSONObjectID.generate, counter, printPreference)))
   }
 }
 

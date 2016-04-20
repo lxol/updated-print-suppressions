@@ -70,6 +70,20 @@ class UpdatedPrintSuppressionsRepositorySpec extends UnitSpec with MongoSpecSupp
         PrintPreference("id_1","a type", List.empty)
       )
     }
+
+    "override previous update with same utr" in {
+      val pp = PrintPreference("11111111", "someType", List.empty)
+      val preferenceWithSameId: PrintPreference = pp.copy(formIds = List("SomeId"))
+
+      val repository = new UpdatedPrintSuppressionsRepository(TODAY, _ => counterRepoStub)
+
+      await(repository.insert(pp))
+      await(repository.insert(preferenceWithSameId))
+
+      val all = repository.findAll()
+      all.size should be (1)
+      all shouldBe List(UpdatedPrintSuppressions(all.head._id, 0, preferenceWithSameId))
+    }
   }
 
   "The counter repository" should {
