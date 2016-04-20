@@ -22,13 +22,12 @@ import uk.gov.hmrc.ups.Limit
 import scala.util.Try
 
 trait LimitBinder extends QueryStringBindable[Limit] {
-  val maximumRecordsPerPage: Int = 20000
 
   def bind(key: String, params: Map[String, Seq[String]]): Option[Either[String, Limit]] = {
     params.get(key).flatMap(_.headOption).map { l: String => Try {
       l.toInt match {
         case limit if limit < 0 => Left("limit parameter is less than zero")
-        case limit if limit > maximumRecordsPerPage => Left(s"limit parameter cannot be bigger than $maximumRecordsPerPage")
+        case limit if limit > LimitBinder.maximumRecordsPerPage => Left(s"limit parameter cannot be bigger than ${LimitBinder.maximumRecordsPerPage}")
         case limit => Right(limit)
       }
     } recover {
@@ -38,4 +37,8 @@ trait LimitBinder extends QueryStringBindable[Limit] {
   }
 
   def unbind(key: String, value: Limit): String = QueryStringBindable.bindableInt.unbind(key, value)
+}
+
+object LimitBinder {
+  val maximumRecordsPerPage: Int = 20000
 }

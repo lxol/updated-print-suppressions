@@ -22,6 +22,7 @@ import play.modules.reactivemongo.ReactiveMongoPlugin
 import uk.gov.hmrc.play.http.BadRequestException
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
 import uk.gov.hmrc.play.microservice.controller.BaseController
+import uk.gov.hmrc.ups.controllers.bind.LimitBinder
 import uk.gov.hmrc.ups.model.UpdatedPrintPreferences
 import uk.gov.hmrc.ups.{pastLocalDateBinder, PastLocalDate, Limit}
 import uk.gov.hmrc.ups.repository.{MongoCounterRepository, UpdatedPrintSuppressionsRepository}
@@ -41,7 +42,7 @@ trait UpdatedPrintSuppressionsController extends BaseController {
         case Some(Right(updatedOn)) =>
 
           val repository = new UpdatedPrintSuppressionsRepository(updatedOn, counterName => new MongoCounterRepository(counterName))
-          val limit = optLimit.getOrElse(20000)
+          val limit = optLimit.getOrElse(LimitBinder.maximumRecordsPerPage)
           val offset = optOffset.getOrElse(0)
           for {
             count <- repository.count
