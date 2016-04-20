@@ -25,7 +25,8 @@ import play.api.test.Helpers._
 import uk.gov.hmrc.mongo.MongoSpecSupport
 import uk.gov.hmrc.play.it.{ExternalService, MongoMicroServiceEmbeddedServer}
 import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
-import uk.gov.hmrc.ups.repository.{MongoCounterRepository, CounterRepository, PrintPreference, UpdatedPrintSuppressionsRepository}
+import uk.gov.hmrc.ups.model.PrintPreference
+import uk.gov.hmrc.ups.repository.{MongoCounterRepository, UpdatedPrintSuppressionsRepository}
 
 class UpdatedPrintSuppressionsControllerISpec extends UnitSpec with WithFakeApplication with TestServer with IntegrationPatience {
 

@@ -23,6 +23,7 @@ import uk.gov.hmrc.mongo.MongoSpecSupport
 import uk.gov.hmrc.play.http.HeaderCarrier
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
 import uk.gov.hmrc.play.test.UnitSpec
+import uk.gov.hmrc.ups.model.PrintPreference
 
 import scala.concurrent.{Future, ExecutionContext}
 

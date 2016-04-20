@@ -18,22 +18,18 @@ package uk.gov.hmrc.ups.repository
 
 import org.joda.time.LocalDate
 import play.api.libs.json.Json
-import reactivemongo.api.DB
+import reactivemongo.api.{ReadPreference, DB}
 import reactivemongo.api.commands.WriteResult
 import reactivemongo.api.indexes.{Index, IndexType}
 import reactivemongo.bson.{BSONDocument, BSONObjectID}
 import reactivemongo.core.commands.{FindAndModify, Update}
 import uk.gov.hmrc.mongo.ReactiveRepository
 import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
+import uk.gov.hmrc.ups.model.PrintPreference
 
+import scala.RuntimeException
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
-
-case class PrintPreference(id: String, idType: String, formIds: List[String])
-
-object PrintPreference {
-  val formats = Json.format[PrintPreference]
-}
 
 case class UpdatedPrintSuppressions(_id: BSONObjectID, counter: Int, printPreference: PrintPreference)
 
@@ -62,7 +58,9 @@ class UpdatedPrintSuppressionsRepository(
     val from = offset
     val to = offset + limit
     val query = Json.obj("counter" -> Json.obj("$gte" -> from), "counter" -> Json.obj("$lt" -> to))
-    val e: Future[List[UpdatedPrintSuppressions]] = collection.find(query).cursor[UpdatedPrintSuppressions].collect[List]()
+    val e: Future[List[UpdatedPrintSuppressions]] = collection.find(query)
+      .cursor[UpdatedPrintSuppressions](ReadPreference.primaryPreferred)
+      .collect[List]()
     e.map(_.map(ups => ups.printPreference))
   }
 
@@ -92,17 +90,11 @@ class MongoCounterRepository(counterName: String)(implicit mongo: () => DB, ec: 
     Seq(Index(Seq("name" -> IndexType.Ascending), name = Some("nameIdx"), unique = true, sparse = false))
 
   def next(implicit ec: ExecutionContext): Future[Int] = {
-
-    collection.db.command(
-      FindAndModify(
-        collection = collection.name,
-        query = BSONDocument("name" -> counterName),
-        modify = Update(BSONDocument("$inc" -> BSONDocument("value" -> 1)), fetchNewObject = false)
-      )
-    ).map {
-      case Some(result) => Json.toJson(result).as[Counter].value
-      case None => throw new RuntimeException("No initialised counter found")
-    }
+    collection.findAndUpdate(
+      selector = BSONDocument("name" -> counterName),
+      update = BSONDocument("$inc" -> BSONDocument("value" -> 1)),
+      fetchNewObject = false
+    ).map(_.result[Counter].getOrElse(throw new RuntimeException("No initialised counter found")).value)
   }
 
   def initialise(implicit ec: ExecutionContext): Future[Boolean] = {

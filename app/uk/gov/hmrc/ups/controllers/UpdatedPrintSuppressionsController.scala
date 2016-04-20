@@ -22,8 +22,9 @@ import play.modules.reactivemongo.ReactiveMongoPlugin
 import uk.gov.hmrc.play.http.BadRequestException
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
 import uk.gov.hmrc.play.microservice.controller.BaseController
+import uk.gov.hmrc.ups.model.UpdatedPrintPreferences
 import uk.gov.hmrc.ups.{pastLocalDateBinder, PastLocalDate, Limit}
-import uk.gov.hmrc.ups.repository.{MongoCounterRepository, PrintPreference, UpdatedPrintSuppressionsRepository}
+import uk.gov.hmrc.ups.repository.{MongoCounterRepository, UpdatedPrintSuppressionsRepository}
 
 import scala.math.BigDecimal.RoundingMode
 
@@ -70,13 +71,3 @@ trait UpdatedPrintSuppressionsController extends BaseController {
 }
 
 object UpdatedPrintSuppressionsController extends UpdatedPrintSuppressionsController
-
-case class UpdatedPrintPreferences(pages: Long, next: Option[String], updates: List[PrintPreference])
-
-object UpdatedPrintPreferences {
-
-  val formats = {
-    implicit val ppf = PrintPreference.formats
-    Json.format[UpdatedPrintPreferences]
-  }
-}
