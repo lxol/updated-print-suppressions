@@ -18,25 +18,65 @@ package uk.gov.hmrc.ups.controllers
 
 import play.api.libs.json.Json
 import play.api.mvc._
+import play.modules.reactivemongo.ReactiveMongoPlugin
 import uk.gov.hmrc.play.http.BadRequestException
+import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
 import uk.gov.hmrc.play.microservice.controller.BaseController
+import uk.gov.hmrc.ups.{pastLocalDateBinder, PastLocalDate, Limit}
+import uk.gov.hmrc.ups.repository.{MongoCounterRepository, PrintPreference, UpdatedPrintSuppressionsRepository}
 
-import scala.concurrent.Future
+import scala.math.BigDecimal.RoundingMode
 
 trait UpdatedPrintSuppressionsController extends BaseController {
 
-  def list(offset: Option[Long], limit: Option[Int]): Action[AnyContent] =
+  import play.api.Play.current
+
+  implicit val mongo = ReactiveMongoPlugin.mongoConnector.db
+  implicit val uppf = UpdatedPrintPreferences.formats
+
+  def list(optOffset: Option[Int], optLimit: Option[Limit]): Action[AnyContent] =
     Action.async { implicit request =>
-      request.queryString
-        .get("updated-on")
-        .fold(throw new BadRequestException("updated-on is a mandatory parameter"))(_ =>
-          Future.successful(
-            Results.Ok(
-              Json.obj("pages" -> 0, "updates" -> List.empty[String])
+      pastLocalDateBinder.bind("updated-on", request.queryString) match {
+        case Some(Right(updatedOn)) =>
+
+          val repository = new UpdatedPrintSuppressionsRepository(updatedOn, counterName => new MongoCounterRepository(counterName))
+          val limit = optLimit.getOrElse(20000)
+          val offset = optOffset.getOrElse(0)
+          for {
+            count <- repository.count
+            updates <- repository
+              .find(offset, limit)
+          } yield {
+            val pages: Int = (BigDecimal(count) / BigDecimal(limit)).setScale(0, RoundingMode.UP).intValue()
+            Ok(Json.toJson(UpdatedPrintPreferences(
+              pages = pages,
+              next = nextPageURL(updatedOn, limit, count, offset),
+              updates = updates))
             )
-          )
-        )
+          }
+        case None => throw new BadRequestException("updated-on is a mandatory parameter")
+        case Some(Left(message)) => throw new BadRequestException(message)
+      }
     }
+
+  private def nextPageURL(updatedOn: PastLocalDate, limit: Int, count: Int, offset: Int): Option[String] = {
+    if (count > offset + limit)
+      Some(routes.UpdatedPrintSuppressionsController.list(
+        offset = Some(offset + limit),
+        limit = Some(limit)
+      ).url + s"&${pastLocalDateBinder.unbind("updated-on", updatedOn)}")
+    else None
+  }
 }
 
 object UpdatedPrintSuppressionsController extends UpdatedPrintSuppressionsController
+
+case class UpdatedPrintPreferences(pages: Long, next: Option[String], updates: List[PrintPreference])
+
+object UpdatedPrintPreferences {
+
+  val formats = {
+    implicit val ppf = PrintPreference.formats
+    Json.format[UpdatedPrintPreferences]
+  }
+}
