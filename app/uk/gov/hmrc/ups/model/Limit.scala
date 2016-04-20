@@ -14,12 +14,10 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc
+package uk.gov.hmrc.ups.model
 
-import uk.gov.hmrc.ups.controllers.bind.{LimitBinder, PastLocalDateBindable}
+case class Limit(value: Int)
 
-package object ups {
-
-  implicit val limitBinder = new LimitBinder{}
-  implicit val pastLocalDateBinder = new PastLocalDateBindable{}
+object Limit {
+  val max = Limit(20000)
 }

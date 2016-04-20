@@ -22,9 +22,8 @@ import play.modules.reactivemongo.ReactiveMongoPlugin
 import uk.gov.hmrc.play.http.BadRequestException
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
 import uk.gov.hmrc.play.microservice.controller.BaseController
-import uk.gov.hmrc.ups.controllers.bind.LimitBinder
-import uk.gov.hmrc.ups.model.UpdatedPrintPreferences
-import uk.gov.hmrc.ups.{pastLocalDateBinder, PastLocalDate, Limit}
+import uk.gov.hmrc.ups.model.{Limit, PastLocalDate, UpdatedPrintPreferences}
+import uk.gov.hmrc.ups.pastLocalDateBinder
 import uk.gov.hmrc.ups.repository.{MongoCounterRepository, UpdatedPrintSuppressionsRepository}
 
 import scala.math.BigDecimal.RoundingMode
@@ -41,15 +40,15 @@ trait UpdatedPrintSuppressionsController extends BaseController {
       pastLocalDateBinder.bind("updated-on", request.queryString) match {
         case Some(Right(updatedOn)) =>
 
-          val repository = new UpdatedPrintSuppressionsRepository(updatedOn, counterName => new MongoCounterRepository(counterName))
-          val limit = optLimit.getOrElse(LimitBinder.maximumRecordsPerPage)
+          val repository = new UpdatedPrintSuppressionsRepository(updatedOn.value, counterName => new MongoCounterRepository(counterName))
+          val limit = optLimit.getOrElse(Limit.max)
           val offset = optOffset.getOrElse(0)
           for {
             count <- repository.count
             updates <- repository
-              .find(offset, limit)
+              .find(offset, limit.value)
           } yield {
-            val pages: Int = (BigDecimal(count) / BigDecimal(limit)).setScale(0, RoundingMode.UP).intValue()
+            val pages: Int = (BigDecimal(count) / BigDecimal(limit.value)).setScale(0, RoundingMode.UP).intValue()
             Ok(Json.toJson(UpdatedPrintPreferences(
               pages = pages,
               next = nextPageURL(updatedOn, limit, count, offset),
@@ -61,10 +60,10 @@ trait UpdatedPrintSuppressionsController extends BaseController {
       }
     }
 
-  private def nextPageURL(updatedOn: PastLocalDate, limit: Int, count: Int, offset: Int): Option[String] = {
-    if (count > offset + limit)
+  private def nextPageURL(updatedOn: PastLocalDate, limit: Limit, count: Int, offset: Int): Option[String] = {
+    if (count > offset + limit.value)
       Some(routes.UpdatedPrintSuppressionsController.list(
-        offset = Some(offset + limit),
+        offset = Some(offset + limit.value),
         limit = Some(limit)
       ).url + s"&${pastLocalDateBinder.unbind("updated-on", updatedOn)}")
     else None

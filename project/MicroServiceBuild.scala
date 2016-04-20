@@ -15,7 +15,7 @@ object MicroServiceBuild extends Build with MicroService {
   override lazy val appDependencies: Seq[ModuleID] = AppDependencies()
 
   override lazy val playSettings = Seq(routesImport ++= Seq(
-    "uk.gov.hmrc.ups._"
+    "uk.gov.hmrc.ups.model._"
   ))
 }
 

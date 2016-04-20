@@ -85,6 +85,7 @@ class UpdatedPrintSuppressionsControllerISpec extends UnitSpec with WithFakeAppl
       (jsonBody \ "next").as[String] shouldBe s"/preferences/sa/individual/print-suppression?offset=6&limit=6&updated-on=$yesterdayAsString"
       (jsonBody \ "updates").as[JsArray].value.size shouldBe 6
     }
+
     "honor the offset when another batch of events is requested" in new TestSetup {
       0 to 9 foreach(n => await(repoYesterday.insert(PrintPreference(s"id_$n", "someType", List.empty))))
       val response = get(`/preferences/sa/individual/print-suppression`(Some(yesterdayAsString), Some("6"), Some("6")))
@@ -94,6 +95,16 @@ class UpdatedPrintSuppressionsControllerISpec extends UnitSpec with WithFakeAppl
       (jsonBody \ "next").asOpt[String] should not be defined
       (jsonBody \ "updates").as[JsArray].value.size shouldBe 4
     }
+
+    "allow a big number as an offset" in new TestSetup {
+      val response = get(`/preferences/sa/individual/print-suppression`(Some(yesterdayAsString), Some("50000"), None))
+      response.status shouldBe 200
+
+      private val jsonBody = Json.parse(response.body)
+      (jsonBody \ "pages").as[Int] shouldBe 0
+      jsonBody \ "updates" shouldBe JsArray()
+    }
+
     "return 400 when the limit is not a number between 1 and 20,000" in {
       val response = get(`/preferences/sa/individual/print-suppression`(Some("2014-01-22"), None, Some("99999999")))
       response.status shouldBe 400
@@ -102,6 +113,7 @@ class UpdatedPrintSuppressionsControllerISpec extends UnitSpec with WithFakeAppl
       (jsonBody \ "statusCode").as[Int] shouldBe 400
       (jsonBody \ "message").as[String] shouldBe "limit parameter cannot be bigger than 20000"
     }
+
     "return 400 when the limit is negative" in {
       val response = get(`/preferences/sa/individual/print-suppression`(Some("2014-01-22"), None, Some("-1")))
       response.status shouldBe 400
@@ -110,6 +122,7 @@ class UpdatedPrintSuppressionsControllerISpec extends UnitSpec with WithFakeAppl
       (jsonBody \ "statusCode").as[Int] shouldBe 400
       (jsonBody \ "message").as[String] shouldBe "limit parameter is less than zero"
     }
+
     "return 400 when the limit is not a number" in {
       val response = get(`/preferences/sa/individual/print-suppression`(Some("2014-01-22"), None, Some("not-a-number")))
       response.status shouldBe 400
@@ -118,7 +131,17 @@ class UpdatedPrintSuppressionsControllerISpec extends UnitSpec with WithFakeAppl
       (jsonBody \ "statusCode").as[Int] shouldBe 400
       (jsonBody \ "message").as[String] shouldBe "Cannot parse parameter limit as Int"
     }
-    "return 400 when the offset is not recognised" in {}
+
+    "return 400 when the offset is not a number" in {
+
+      val response = get(`/preferences/sa/individual/print-suppression`(Some("2014-01-22"), Some("not-a-number"), None))
+      response.status shouldBe 400
+
+      val jsonBody = Json.parse(response.body)
+      (jsonBody \ "statusCode").as[Int] shouldBe 400
+      (jsonBody \ "message").as[String] shouldBe "Cannot parse parameter offset as Int: For input string: \"not-a-number\""
+    }
+
     "return 400 when the updated-on parameter is malformed" in {
       val response = get(`/preferences/sa/individual/print-suppression`(Some("not-a-date"), None, None))
       response.status shouldBe 400

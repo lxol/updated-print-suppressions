@@ -17,7 +17,7 @@
 package uk.gov.hmrc.ups.controllers.bind
 
 import play.api.mvc.QueryStringBindable
-import uk.gov.hmrc.ups.Limit
+import uk.gov.hmrc.ups.model.Limit
 
 import scala.util.Try
 
@@ -27,8 +27,8 @@ trait LimitBinder extends QueryStringBindable[Limit] {
     params.get(key).flatMap(_.headOption).map { l: String => Try {
       l.toInt match {
         case limit if limit < 0 => Left("limit parameter is less than zero")
-        case limit if limit > LimitBinder.maximumRecordsPerPage => Left(s"limit parameter cannot be bigger than ${LimitBinder.maximumRecordsPerPage}")
-        case limit => Right(limit)
+        case limit if limit > Limit.max.value => Left(s"limit parameter cannot be bigger than ${Limit.max.value}")
+        case limit => Right(Limit(limit))
       }
     } recover {
       case e: Exception => Left("Cannot parse parameter limit as Int")
@@ -36,9 +36,5 @@ trait LimitBinder extends QueryStringBindable[Limit] {
     }
   }
 
-  def unbind(key: String, value: Limit): String = QueryStringBindable.bindableInt.unbind(key, value)
-}
-
-object LimitBinder {
-  val maximumRecordsPerPage: Int = 20000
+  def unbind(key: String, limit: Limit): String = QueryStringBindable.bindableInt.unbind(key, limit.value)
 }

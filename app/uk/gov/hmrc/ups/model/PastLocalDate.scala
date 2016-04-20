@@ -14,12 +14,8 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc
+package uk.gov.hmrc.ups.model
 
-import uk.gov.hmrc.ups.controllers.bind.{LimitBinder, PastLocalDateBindable}
+import org.joda.time.LocalDate
 
-package object ups {
-
-  implicit val limitBinder = new LimitBinder{}
-  implicit val pastLocalDateBinder = new PastLocalDateBindable{}
-}
+case class PastLocalDate(value: LocalDate)
