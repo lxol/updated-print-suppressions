@@ -11,3 +11,5 @@
 
 # Add all the application routes to the prod.routes file
 ->         /                          prod.Routes
+
+POST /preferences/sa/individual/print-suppression     uk.gov.hmrc.ups.controllers.admin.AdminController.insert(date: String)

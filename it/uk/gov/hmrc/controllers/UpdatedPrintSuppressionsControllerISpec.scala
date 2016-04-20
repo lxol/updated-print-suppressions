@@ -17,16 +17,10 @@
 package uk.gov.hmrc.controllers
 
 import org.joda.time.LocalDate
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
+import org.scalatest.concurrent.IntegrationPatience
 import play.api.libs.json.{JsArray, Json}
-import play.api.libs.ws.{WS, WSRequestHolder}
-import play.api.test.Helpers._
-import uk.gov.hmrc.mongo.MongoSpecSupport
-import uk.gov.hmrc.play.it.{ExternalService, MongoMicroServiceEmbeddedServer}
 import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
 import uk.gov.hmrc.ups.model.PrintPreference
-import uk.gov.hmrc.ups.repository.{MongoCounterRepository, UpdatedPrintSuppressionsRepository}
 
 class UpdatedPrintSuppressionsControllerISpec extends UnitSpec with WithFakeApplication with TestServer with IntegrationPatience {
 
@@ -173,57 +167,3 @@ class UpdatedPrintSuppressionsControllerISpec extends UnitSpec with WithFakeAppl
 }
 
 
-class TestSetup(override val databaseName: String = "updated-print-suppressions") extends MongoSpecSupport {
-
-  implicit val ppFormats = PrintPreference.formats
-  implicit val ec = scala.concurrent.ExecutionContext.Implicits.global
-
-  val today = LocalDate.now
-  private val yesterday = today.minusDays(1)
-
-
-  val todayString = today.toString("yyyy-MM-dd")
-  val yesterdayAsString = yesterday.toString("yyyy-MM-dd")
-
-  // Reset the counters
-  await(new MongoCounterRepository("-").removeAll())
-
-  val repoToday = new UpdatedPrintSuppressionsRepository(today, counterName => new MongoCounterRepository(counterName))
-  await(repoToday.removeAll())
-
-  val repoYesterday = new UpdatedPrintSuppressionsRepository(yesterday, counterName => new MongoCounterRepository(counterName))
-  await(repoYesterday.removeAll())
-}
-
-trait DatabaseName {
-  val testName: String = "updated-print-suppressions"
-}
-
-trait TestServer extends ScalaFutures with DatabaseName with MongoMicroServiceEmbeddedServer with UnitSpec with BeforeAndAfterAll {
-
-  import play.api.Play.current
-
-  override val dbName = "updated-print-suppressions"
-  override protected val externalServices: Seq[ExternalService] = Seq.empty
-
-
-  override protected def additionalConfig: Map[String, Any] = Map("auditing.enabled" -> false)
-
-  def `/preferences/sa/individual/print-suppression`(updatedOn: Option[String], offset: Option[String], limit: Option[String]) = {
-
-    val queryString = List(
-      updatedOn.map(value => "updated-on" -> value),
-      offset.map(value => "offset" -> value),
-      limit.map(value => "limit" -> value)
-    ).flatten
-
-    WS.url(resource("/preferences/sa/individual/print-suppression")).withQueryString(queryString: _*)
-  }
-
-
-  def get(url: WSRequestHolder) = url.get().futureValue
-
-  override def beforeAll(): Unit = start()
-
-  override def afterAll(): Unit = stop()
-}

@@ -46,6 +46,30 @@ The `next` property gives the URL of the next page of preferences, if available.
 
 ----------
 
+# Admin API
+
+| Path                                                                                     | Supported Methods | Description                                                                                                                                                                                   |
+| -----------------------------------------------------------------------------------------| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/preferences/sa/individual/print-suppression`                                           | POST              | Insert or update a updated print preference record [More...](#post-preferencessaindividualprint-suppression)                 |
+
+### POST /preferences/sa/individual/print-suppression
+
+Insert or update a updated print preference record
+
+| Name         | Description |
+| ------------ | ----------- |
+| `date` | Mandatory field. The date the preference has been updated. Must be a date formatted as `yyyy-mm-dd`. |
+
+
+Example body:
+
+```javascript
+{"id":"10000001","idType":"utr","formIds":["ABC","123","XYZ"]},
+```
+Responds with status:
+
+* `200` when the record is inserted or updated successfully
+* `500` in any other case
 
 
 ### License
