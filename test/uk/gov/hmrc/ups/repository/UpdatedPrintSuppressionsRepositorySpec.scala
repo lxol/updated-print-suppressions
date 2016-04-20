@@ -58,7 +58,10 @@ class UpdatedPrintSuppressionsRepositorySpec extends UnitSpec with MongoSpecSupp
       await(repository.insert(ppTwo))
 
       val all = repository.findAll()
-      await(all) shouldBe List(UpdatedPrintSuppressions(all.head._id, 0, ppOne), UpdatedPrintSuppressions(all.last._id, 1, ppTwo))
+      await(all) shouldBe List(
+        UpdatedPrintSuppressions(all.head._id, 0, ppOne),
+        UpdatedPrintSuppressions(all.last._id, 1, ppTwo)
+      )
     }
 
     "find and return all records within a range" in {
@@ -82,7 +85,7 @@ class UpdatedPrintSuppressionsRepositorySpec extends UnitSpec with MongoSpecSupp
 
       val all = repository.findAll()
       all.size should be (1)
-      all shouldBe List(UpdatedPrintSuppressions(all.head._id, 0, preferenceWithSameId))
+      await(all) shouldBe List(UpdatedPrintSuppressions(all.head._id, 0, preferenceWithSameId))
     }
   }
 

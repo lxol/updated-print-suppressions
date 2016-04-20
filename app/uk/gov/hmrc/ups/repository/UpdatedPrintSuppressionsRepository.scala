@@ -67,8 +67,23 @@ class UpdatedPrintSuppressionsRepository(
     e.map(_.map(ups => ups.printPreference))
   }
 
-  def insert(printPreference: PrintPreference)(implicit ec: ExecutionContext): Future[WriteResult] = {
-    counterRepo.next.flatMap(counter => super.insert(new UpdatedPrintSuppressions(BSONObjectID.generate, counter, printPreference)))
+  def insert(printPreference: PrintPreference)(implicit ec: ExecutionContext): Future[Boolean] = {
+
+    val selector = BSONDocument("printPreference.id" -> printPreference.id, "printPreference.idType" -> printPreference.idType)
+    collection.find(selector).one[UpdatedPrintSuppressions].flatMap {
+
+      case Some(ups) =>
+        collection.update(
+          selector = BSONDocument("_id" -> ups._id),
+          update = UpdatedPrintSuppressions.formats.writes(ups.copy(printPreference = printPreference))
+        )
+
+
+      case None => counterRepo.next.flatMap(counter =>
+        super.insert(new UpdatedPrintSuppressions(BSONObjectID.generate, counter, printPreference))
+      )
+
+    }.map(_.ok)
   }
 }
 
