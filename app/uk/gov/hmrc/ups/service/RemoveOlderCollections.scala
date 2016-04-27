@@ -27,34 +27,39 @@ import scala.util.{Failure, Success}
 
 
 final case class RemoveOlderCollections(listCollections: () => Future[List[String]],
-                                        expireCollection: String => Future[Boolean]) {
+                                        expireCollection: String => Future[Boolean]) extends DeleteCollectionFilter {
 
-  def removeOlderThan(days: Duration)(implicit ec:ExecutionContext): Future[Int] = {
-    val formatter = DateTimeFormat.forPattern(UpdatedPrintSuppressions.datePattern)
-
-    def extractDateFromCollection(value: String) = formatter.parseLocalDate(value.dropWhile(!_.isDigit))
-
-    val now = LocalDate.now()
+  def removeOlderThan(days: Duration)(implicit ec: ExecutionContext): Future[Int] = {
     listCollections().flatMap { collectionNames =>
       Future.sequence(
         collectionNames.
-          filter { collectionName =>
-            new jDuration(
-              extractDateFromCollection(collectionName).toDateTimeAtStartOfDay,
-              now.toDateTimeAtStartOfDay
-            ).getStandardDays.days >= days
-          }
+          filter ( filterUpsCollectionsOnly(_, days) )
           map { collectionName =>
-            val result = expireCollection(collectionName)
-            result.onComplete {
-              case Success(_) => Logger.info(s"Successfully deleted $collectionName")
-              case Failure(ex) => Logger.info(s"Failed to delete $collectionName with error", ex)
-            }
-            result
+          val result = expireCollection(collectionName)
+          result.onComplete {
+            case Success(_) => Logger.info(s"Successfully deleted $collectionName")
+            case Failure(ex) => Logger.info(s"Failed to delete $collectionName with error", ex)
+          }
+          result
         }
-      ).map(_.foldLeft(0)((count, value) => if (value) (count+1) else count))
+      ).map(_.foldLeft(0)((count, value) => if (value) (count + 1) else count))
     }
   }
+}
 
 
+trait DeleteCollectionFilter {
+  private def today: LocalDate = LocalDate.now()
+
+  def filterUpsCollectionsOnly(collectionName: String, days: Duration): Boolean = {
+
+    val formatter = DateTimeFormat.forPattern(UpdatedPrintSuppressions.datePattern)
+    def extractDateFromCollection(value: String) = formatter.parseLocalDate(value.dropWhile(!_.isDigit))
+
+    new jDuration(
+      extractDateFromCollection(collectionName).toDateTimeAtStartOfDay,
+      today.toDateTimeAtStartOfDay
+    ).getStandardDays.days >= days
+
+  }
 }

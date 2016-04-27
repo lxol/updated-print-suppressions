@@ -21,21 +21,15 @@ import org.scalatest.concurrent.ScalaFutures
 import uk.gov.hmrc.play.test.UnitSpec
 import uk.gov.hmrc.ups.repository.UpdatedPrintSuppressions
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration._
-
-import scala.concurrent.ExecutionContext.Implicits.global
 
 class RemoveOlderCollectionsSpec extends UnitSpec with ScalaFutures {
   val now = LocalDate.now()
 
-  //TODO: re-look
   "remove older collections" should {
-    "remove collection older than n days" in new SetUp {
-      service.removeOlderThan(expirationPeriod).futureValue shouldBe (3)
-    }
-
-    trait SetUp {
+    "remove collection older than n days" in {
       val expirationPeriod = 2 days
 
       val service = RemoveOlderCollections(
@@ -47,6 +41,30 @@ class RemoveOlderCollectionsSpec extends UnitSpec with ScalaFutures {
           else false
         )
       )
+      service.removeOlderThan(expirationPeriod).futureValue shouldBe (3)
     }
+  }
+}
+
+class DeleteCollectionFilterSpec extends UnitSpec {
+  "filter for UPS collection names" should {
+    "return true if name matches updated_print_suppressions and is older than the expected duration" in new SetUp {
+      filter.filterUpsCollectionsOnly(UpdatedPrintSuppressions.repoNameTemplate(now.minusDays(3)), expirationPeriod) shouldBe true
+    }
+
+    "return false if name matches updated_print_suppressions and is less than the expected duration" in new SetUp {
+      filter.filterUpsCollectionsOnly(UpdatedPrintSuppressions.repoNameTemplate(now.minusDays(1)), expirationPeriod) shouldBe false
+    }
+
+    "throw exception if name does not match updated_print_suppressions" in new SetUp {
+      an [Exception] should be thrownBy filter.filterUpsCollectionsOnly("randomCollectionName", expirationPeriod)
+    }
+  }
+
+  trait SetUp {
+    val expirationPeriod = 2 days
+
+    val filter = new DeleteCollectionFilter{}
+    val now = LocalDate.now()
   }
 }
