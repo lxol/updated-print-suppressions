@@ -38,7 +38,8 @@ object UpdatedPrintSuppressions {
   implicit val pp = PrintPreference.formats
 
   val formats = Json.format[UpdatedPrintSuppressions]
-  def toString(date: LocalDate) = date.toString("yyyyMMdd")
+  val datePattern = "yyyyMMdd"
+  def toString(date: LocalDate) = date.toString(datePattern)
   def repoNameTemplate(date: LocalDate) = s"updated_print_suppressions_${toString(date)}"
 }
 
@@ -66,6 +67,7 @@ class UpdatedPrintSuppressionsRepository(date: LocalDate, repoCreator: String =>
       .collect[List]()
     e.map(_.map(ups => ups.printPreference))
   }
+
 
   def insert(printPreference: PrintPreference)(implicit ec: ExecutionContext): Future[Boolean] = {
 
@@ -104,7 +106,6 @@ trait CounterRepository {
 
 class MongoCounterRepository(counterName: String)(implicit mongo: () => DB, ec: ExecutionContext)
   extends ReactiveRepository[Counter, BSONObjectID]("counters", mongo, Counter.formats, ReactiveMongoFormats.objectIdFormats) with CounterRepository {
-
 
   override def indexes: Seq[Index] =
     Seq(Index(Seq("name" -> IndexType.Ascending), name = Some("nameIdx"), unique = true, sparse = false))
