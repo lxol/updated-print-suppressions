@@ -38,15 +38,15 @@ object UpdatedPrintSuppressions {
   implicit val pp = PrintPreference.formats
 
   val formats = Json.format[UpdatedPrintSuppressions]
+  def toString(date: LocalDate) = date.toString("yyyyMMdd")
+  def repoNameTemplate(date: LocalDate) = s"updated_print_suppressions_${toString(date)}"
 }
 
-class UpdatedPrintSuppressionsRepository(
-                                          date: LocalDate,
-                                          repoCreator: String => CounterRepository
-                                        )(implicit mongo: () => DB, ec: ExecutionContext)
-  extends ReactiveRepository[UpdatedPrintSuppressions, BSONObjectID](s"updated_print_suppressions_${date.toString("yyyyMMdd")}", mongo, UpdatedPrintSuppressions.formats) {
+class UpdatedPrintSuppressionsRepository(date: LocalDate, repoCreator: String => CounterRepository)
+                                        (implicit mongo: () => DB, ec: ExecutionContext)
+  extends ReactiveRepository[UpdatedPrintSuppressions, BSONObjectID](UpdatedPrintSuppressions.repoNameTemplate(date), mongo, UpdatedPrintSuppressions.formats) {
 
-  val counterRepo = repoCreator(date.toString("yyyyMMdd"))
+  val counterRepo = repoCreator(UpdatedPrintSuppressions.toString(date))
 
   override def indexes: Seq[Index] =
     Seq(
@@ -85,6 +85,8 @@ class UpdatedPrintSuppressionsRepository(
 
     }.map(_.ok)
   }
+
+
 }
 
 case class Counter(_id: BSONObjectID, name: String, value: Int)
