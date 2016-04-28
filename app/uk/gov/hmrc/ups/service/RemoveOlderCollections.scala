@@ -27,26 +27,26 @@ import scala.util.{Failure, Success}
 
 
 final case class RemoveOlderCollections(listCollections: () => Future[List[String]],
-                                        expireCollection: String => Future[Boolean]) extends DeleteCollectionFilter {
+                                        expireCollection: String => Future[Unit]) extends DeleteCollectionFilter {
 
-  def removeOlderThan(days: Duration)(implicit ec: ExecutionContext): Future[Int] = {
-    listCollections().flatMap { collectionNames =>
-      Future.sequence(
-        collectionNames.
-          filter ( filterUpsCollectionsOnly(_, days) )
-          map { collectionName =>
-          val result = expireCollection(collectionName)
-          result.onComplete {
-            case Success(_) => Logger.info(s"Successfully deleted $collectionName")
-            case Failure(ex) => Logger.info(s"Failed to delete $collectionName with error", ex)
+  def removeOlderThan(days: Duration)(implicit ec: ExecutionContext): Future[Unit] =
+    compose(filterUpsCollectionsOnly(_, days))
+
+  def compose(filter: String => Boolean)(implicit ec: ExecutionContext): Future[Unit] =
+    listCollections().flatMap { names =>
+      Future.fold(
+        names.filter(filter).
+          map { name =>
+            val result = expireCollection(name)
+            result.onComplete {
+              case Success(_) => Logger.info(s"Successfully deleted $name")
+              case Failure(ex) => Logger.info(s"Failed to delete $name with error", ex)
+            }
+            result
           }
-          result
-        }
-      ).map(_.foldLeft(0)((count, value) => if (value) (count + 1) else count))
+      )(())((_, _) => ())
     }
-  }
 }
-
 
 trait DeleteCollectionFilter {
   private def today: LocalDate = LocalDate.now()

@@ -22,8 +22,12 @@ import reactivemongo.api.collections.bson.BSONCollection
 import scala.concurrent.{ExecutionContext, Future}
 
 class CollectionsListRepository(implicit db: () => DefaultDB, ec: ExecutionContext) {
+
   def dropCollection(collectionName: String): Future[Unit] =
     db().collection[BSONCollection](collectionName).drop()
+
+  def listCollectionNames(predicate: String => Boolean): Future[List[String]] =
+    db().collectionNames.map(_.filter(predicate))
 
   def upsCollectionNames(): Future[List[String]] = db().collectionNames.map(_.filter(_.startsWith("updated")))
 }

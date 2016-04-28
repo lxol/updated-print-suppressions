@@ -29,20 +29,60 @@ class RemoveOlderCollectionsSpec extends UnitSpec with ScalaFutures {
   val now = LocalDate.now()
 
   "remove older collections" should {
-    "remove collection older than n days" in {
+    "remove collection older than n days" in new WithDeletionsCounter {
+      val expirationPeriod: Duration = 2 days
+
+      await(
+        RemoveOlderCollections(
+          () => Future.successful(
+            (0 to 4).map { increment =>
+              UpdatedPrintSuppressions.repoNameTemplate(now.minusDays(increment))
+            }.toList
+          ),
+          value => 
+             if ((2 to 4).map { x => UpdatedPrintSuppressions.repoNameTemplate(now.minusDays(x)) }.contains(value))
+              Future { counter.incrementAndGet() ; () }
+            else
+              Future.failed(new RuntimeException(s"unexpected value $value"))
+        ).removeOlderThan(expirationPeriod)
+      )
+
+      counter.get shouldBe 3
+    }
+
+    "perform no deletions when provided an empty list of names" in new WithDeletionsCounter {
+      await(
+        RemoveOlderCollections(
+          () => Future.successful(List.empty[String]),
+          value => Future { counter.incrementAndGet() ; () }
+        ).removeOlderThan(0 days)
+      )
+
+      counter.get shouldBe 0
+    }
+
+    /* TODO: correct the implementation here
+    "removes collections independently, allowing for partial success" in new WithDeletionsCounter {
       val expirationPeriod = 2 days
 
-      val service = RemoveOlderCollections(
-        () => Future.successful((0 to 4).map { increment =>
-          UpdatedPrintSuppressions.repoNameTemplate(now.minusDays(increment))
-        }.toList),
-        (value: String) => Future.successful(
-          if ((2 to 4).map { x => UpdatedPrintSuppressions.repoNameTemplate(now.minusDays(x)) }.contains(value)) true
-          else false
-        )
+      await(
+        RemoveOlderCollections(
+          () => Future.successful(
+            (0 to 4).map { increment =>
+              UpdatedPrintSuppressions.repoNameTemplate(now.minusDays(increment))
+            }.toList
+          ),
+          value =>
+            if (UpdatedPrintSuppressions.repoNameTemplate(now.minusDays(3)).contains(value)) Future { counter.incrementAndGet() ; () }
+            else Future.failed(new RuntimeException(s"failing on value $value"))
+        ).removeOlderThan(expirationPeriod)
       )
-      service.removeOlderThan(expirationPeriod).futureValue shouldBe (3)
     }
+     */
+  }
+
+  trait WithDeletionsCounter {
+    val counter = new java.util.concurrent.atomic.AtomicInteger(0)
   }
 }
 
