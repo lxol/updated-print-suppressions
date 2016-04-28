@@ -52,7 +52,7 @@ class CollectionsListRepositorySpec extends UnitSpec with MongoSpecSupport with 
         )
       )
 
-      new CollectionsListRepository{}.upsCollectionNames().futureValue should contain only(upsCollectionName1, upsCollectionName2)
+      new CollectionsListRepository().upsCollectionNames.futureValue should contain only(upsCollectionName1, upsCollectionName2)
     }
   }
 
@@ -65,7 +65,7 @@ class CollectionsListRepositorySpec extends UnitSpec with MongoSpecSupport with 
         )
       )
     )
-    await(new CollectionsListRepository{}.dropCollection("db-1"))
+    await(new CollectionsListRepository().dropCollection("db-1"))
 
     mongo().collectionNames.futureValue should not contain ("db-1")
 

@@ -16,18 +16,23 @@
 
 package uk.gov.hmrc.ups.repository
 
+import play.modules.reactivemongo.MongoDbConnection
 import reactivemongo.api.DefaultDB
 import reactivemongo.api.collections.bson.BSONCollection
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class CollectionsListRepository(implicit db: () => DefaultDB, ec: ExecutionContext) {
+class CollectionsListRepository(implicit db: () => DefaultDB) {
 
-  def dropCollection(collectionName: String): Future[Unit] =
+  def dropCollection(collectionName: String)(implicit ec: ExecutionContext): Future[Unit] =
     db().collection[BSONCollection](collectionName).drop()
 
-  private def listCollectionNames(predicate: String => Boolean): Future[List[String]] =
+  private def listCollectionNames(predicate: String => Boolean)(implicit ec: ExecutionContext): Future[List[String]] =
     db().collectionNames.map(_.filter(predicate))
 
-  def upsCollectionNames(): Future[List[String]] = listCollectionNames(_.startsWith("updated"))
+  def upsCollectionNames(implicit ec: ExecutionContext): Future[List[String]] = listCollectionNames(_.startsWith("updated"))
+
+}
+object CollectionsListRepository extends  MongoDbConnection  {
+  def apply(): CollectionsListRepository = new CollectionsListRepository
 }

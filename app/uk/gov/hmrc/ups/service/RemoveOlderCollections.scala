@@ -18,34 +18,43 @@ package uk.gov.hmrc.ups.service
 
 import org.joda.time.format.DateTimeFormat
 import org.joda.time.{Duration => jDuration, _}
-import play.api.Logger
-import uk.gov.hmrc.ups.repository.UpdatedPrintSuppressions
+import uk.gov.hmrc.ups.repository.{CollectionsListRepository, UpdatedPrintSuppressions}
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success}
 
 
-final case class RemoveOlderCollections(listCollections: () => Future[List[String]],
-                                        expireCollection: String => Future[Unit]) extends DeleteCollectionFilter {
+trait RemoveOlderCollections extends DeleteCollectionFilter with SelectAndRemove {
 
-  def removeOlderThan(days: Duration)(implicit ec: ExecutionContext): Future[Unit] =
-    compose(filterUpsCollectionsOnly(_, days))
+  def repository: CollectionsListRepository
 
-  def compose(filter: String => Boolean)(implicit ec: ExecutionContext): Future[Unit] =
+  def removeOlderThan(days: Duration)(implicit ec: ExecutionContext): Future[Totals] =
+    compose(() => repository.upsCollectionNames, repository.dropCollection, filterUpsCollectionsOnly(_, days))
+
+}
+
+object RemoveOlderCollections extends RemoveOlderCollections {
+  val repository = CollectionsListRepository()
+}
+
+trait SelectAndRemove {
+
+  def compose(listCollections: () => Future[List[String]],
+              expireCollection: String => Future[Unit],
+              filter: String => Boolean)(implicit ec: ExecutionContext): Future[Totals] =
     listCollections().flatMap { names =>
-      Future.sequence(
-        names.filter(filter).
-          map { name =>
-            val result = expireCollection(name)
-            result.onComplete {
-              case Success(_) => Logger.info(s"Successfully deleted $name")
-              case Failure(ex) => Logger.error(s"Failed to delete $name with error", ex)
-            }
-            result.recover { case _ => () }
-          }
-      ).map { _ => () }
+      Future.fold(
+        names.filter(filter).map { name =>
+          expireCollection(name).map(_ => Succeeded(name)).recover { case ex => Failed(name, ex) }
+        }
+      )(Totals(List.empty, List.empty))(resultHandler)
     }
+
+  private def resultHandler(totals: Totals, result: ProcessingResult) = result match {
+    case x: Succeeded => totals.copy(successes = x :: totals.successes)
+    case x: Failed => totals.copy(failures = x :: totals.failures)
+  }
+
 }
 
 trait DeleteCollectionFilter {
@@ -63,3 +72,8 @@ trait DeleteCollectionFilter {
 
   }
 }
+
+sealed trait ProcessingResult extends Product with Serializable
+final case class Succeeded(collectionName: String) extends ProcessingResult
+final case class Failed(collectionName: String, ex: Throwable) extends ProcessingResult
+final case class Totals(failures: List[Failed], successes: List[Succeeded])

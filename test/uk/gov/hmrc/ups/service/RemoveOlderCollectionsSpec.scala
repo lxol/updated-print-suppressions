@@ -28,87 +28,64 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 
 class RemoveOlderCollectionsSpec extends UnitSpec with ScalaFutures {
-  val now = LocalDate.now()
 
   "remove older collections" should {
-    "remove collection older than n days" in new WithDeletionsCounter {
-      val expirationPeriod: Duration = 2 days
+    "remove collection older than n days" in new SetUp {
+      val expectedResults = (2 to 4).map { x => repoName(x) }.toList
 
-      await(
-        RemoveOlderCollections(
-          () => Future.successful(
-            (0 to 4).map { increment =>
-              UpdatedPrintSuppressions.repoNameTemplate(now.minusDays(increment))
-            }.toList
-          ),
-          value => 
-             if ((2 to 4).map { x => UpdatedPrintSuppressions.repoNameTemplate(now.minusDays(x)) }.contains(value))
-              Future { counter.incrementAndGet() ; () }
-            else
-              Future.failed(new RuntimeException(s"unexpected value $value"))
-        ).removeOlderThan(expirationPeriod)
-      )
+      val totals =
+        compose(listRepoNames, removeRepoColls(expectedResults, _), filterUpsCollectionsOnly(_, expirationPeriod)).
+          futureValue
 
-      counter.get shouldBe 3
+      totals.failures shouldBe List.empty
+      totals.successes.map { _.collectionName } should contain only(expectedResults: _*)
     }
 
-    "perform no deletions when provided an empty list of names" in new WithDeletionsCounter {
-      await(
-        RemoveOlderCollections(
-          () => Future.successful(List.empty[String]),
-          value => Future { counter.incrementAndGet() ; () }
-        ).removeOlderThan(0 days)
-      )
-
-      counter.get shouldBe 0
+    "perform no deletions when provided an empty list of names" in new SetUp {
+      compose(
+        () => Future.successful(List.empty[String]),
+        value => Future { () },
+        filterUpsCollectionsOnly(_, 0 days)
+      ).futureValue shouldBe Totals(List.empty, List.empty)
     }
 
-    "removes collections independently, allowing for partial success" in new WithDeletionsCounter {
-      val expirationPeriod = 2 days
+    "removes collections independently, allowing for partial success" in new SetUp {
+      val (failures, successes) =
+        compose( listRepoNames, removeRepoColls(List(repoName(3)), _), filterUpsCollectionsOnly(_, expirationPeriod)).
+          map { totals => (totals.failures.map(_.collectionName), totals.successes.map(_.collectionName)) }.
+          futureValue
 
-      await(
-        RemoveOlderCollections(
-          () => Future.successful(
-            (0 to 4).map { increment =>
-              UpdatedPrintSuppressions.repoNameTemplate(now.minusDays(increment))
-            }.toList
-          ),
-          value =>
-            if (UpdatedPrintSuppressions.repoNameTemplate(now.minusDays(3)).contains(value)) Future { counter.getAndIncrement() ; () }
-            else
-              Future.failed(new RuntimeException(s"failing on value $value"))
-        ).removeOlderThan(expirationPeriod)
-      )
-
-      counter.get shouldBe 1
+      failures should contain only(repoName(2), repoName(4))
+      successes should contain only repoName(3)
     }
 
   }
 
-  trait WithDeletionsCounter {
-    val counter = new AtomicInteger(0)
+  trait SetUp extends SelectAndRemove with FilterSetUp {
+    def listRepoNames() = Future.successful((0 to 4).map { increment => repoName(increment) }.toList)
+
+    def removeRepoColls(successfulNames : List[String], valueToCheck : String) =
+      if (successfulNames.contains(valueToCheck)) Future { () }
+      else Future.failed(new RuntimeException(s"unexpected value $valueToCheck"))
   }
 }
 
 class DeleteCollectionFilterSpec extends UnitSpec {
   "filter for UPS collection names" should {
-    "return true if name matches updated_print_suppressions and is older than the expected duration" in new SetUp {
-      filter.filterUpsCollectionsOnly(UpdatedPrintSuppressions.repoNameTemplate(now.minusDays(3)), expirationPeriod) shouldBe true
+    "return true if name matches updated_print_suppressions and is older than the expected duration" in new FilterSetUp {
+      filterUpsCollectionsOnly(repoName(3), expirationPeriod) shouldBe true
     }
 
-    "return false if name matches updated_print_suppressions and is less than the expected duration" in new SetUp {
-      filter.filterUpsCollectionsOnly(UpdatedPrintSuppressions.repoNameTemplate(now.minusDays(1)), expirationPeriod) shouldBe false
+    "return false if name matches updated_print_suppressions and is less than the expected duration" in new FilterSetUp {
+      filterUpsCollectionsOnly(repoName(1), expirationPeriod) shouldBe false
     }
 
-    "throw exception if name does not match updated_print_suppressions" in new SetUp {
-      an [Exception] should be thrownBy filter.filterUpsCollectionsOnly("randomCollectionName", expirationPeriod)
+    "throw exception if name does not match updated_print_suppressions" in new FilterSetUp {
+      an [Exception] should be thrownBy filterUpsCollectionsOnly("randomCollectionName", expirationPeriod)
     }
   }
-
-  trait SetUp {
-    val expirationPeriod = 2 days
-
-    val filter = new DeleteCollectionFilter{}
-    val now = LocalDate.now()
-  }
+}
+trait FilterSetUp extends DeleteCollectionFilter {
+  val expirationPeriod = 2 days
+  def repoName(daysToDecrement : Int) : String = UpdatedPrintSuppressions.repoNameTemplate(LocalDate.now().minusDays(daysToDecrement))
 }
