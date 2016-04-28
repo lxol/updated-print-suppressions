@@ -16,6 +16,8 @@
 
 package uk.gov.hmrc.ups.service
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import org.joda.time.LocalDate
 import org.scalatest.concurrent.ScalaFutures
 import uk.gov.hmrc.play.test.UnitSpec
@@ -61,7 +63,6 @@ class RemoveOlderCollectionsSpec extends UnitSpec with ScalaFutures {
       counter.get shouldBe 0
     }
 
-    /* TODO: correct the implementation here
     "removes collections independently, allowing for partial success" in new WithDeletionsCounter {
       val expirationPeriod = 2 days
 
@@ -73,16 +74,19 @@ class RemoveOlderCollectionsSpec extends UnitSpec with ScalaFutures {
             }.toList
           ),
           value =>
-            if (UpdatedPrintSuppressions.repoNameTemplate(now.minusDays(3)).contains(value)) Future { counter.incrementAndGet() ; () }
-            else Future.failed(new RuntimeException(s"failing on value $value"))
+            if (UpdatedPrintSuppressions.repoNameTemplate(now.minusDays(3)).contains(value)) Future { counter.getAndIncrement() ; () }
+            else
+              Future.failed(new RuntimeException(s"failing on value $value"))
         ).removeOlderThan(expirationPeriod)
       )
+
+      counter.get shouldBe 1
     }
-     */
+
   }
 
   trait WithDeletionsCounter {
-    val counter = new java.util.concurrent.atomic.AtomicInteger(0)
+    val counter = new AtomicInteger(0)
   }
 }
 

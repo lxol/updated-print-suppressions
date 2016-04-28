@@ -34,17 +34,17 @@ final case class RemoveOlderCollections(listCollections: () => Future[List[Strin
 
   def compose(filter: String => Boolean)(implicit ec: ExecutionContext): Future[Unit] =
     listCollections().flatMap { names =>
-      Future.fold(
+      Future.sequence(
         names.filter(filter).
           map { name =>
             val result = expireCollection(name)
             result.onComplete {
               case Success(_) => Logger.info(s"Successfully deleted $name")
-              case Failure(ex) => Logger.info(s"Failed to delete $name with error", ex)
+              case Failure(ex) => Logger.error(s"Failed to delete $name with error", ex)
             }
-            result
+            result.recover { case _ => () }
           }
-      )(())((_, _) => ())
+      ).map { _ => () }
     }
 }
 
