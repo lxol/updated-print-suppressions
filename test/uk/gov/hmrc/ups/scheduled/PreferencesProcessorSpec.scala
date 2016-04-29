@@ -17,7 +17,7 @@
 package uk.gov.hmrc.ups.scheduled
 
 import org.mockito.Mockito._
-import org.mockito.Matchers._
+import org.mockito.Matchers.{eq => argEq, _}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.mock.MockitoSugar
 import uk.gov.hmrc.play.http.HeaderCarrier
@@ -33,6 +33,8 @@ import scala.concurrent.Future
 
 class PreferencesProcessorSpec extends UnitSpec with ScalaFutures with MockitoSugar {
 
+  implicit val hc = HeaderCarrier()
+
   "Process outstanding updates" should {
     //    "return result with zero if there are no updates to process" in new TestCase {
     //      when(mockPreferencesConnector.pullWorkItem()).thenReturn(Future.successful(None))
@@ -42,16 +44,16 @@ class PreferencesProcessorSpec extends UnitSpec with ScalaFutures with MockitoSu
 
     "return result with zero if there are no updates to process" in new TestCase {
       when(mockPreferencesConnector.pullWorkItem()(any())).thenReturn(Future.successful(Right(Some(pulledItem))))
-      when(mockEntityResolverConnector.getTaxIdentifiers(pulledItem.entityId)).thenReturn(Future.successful(Some(entity)))
-      when(mockRepo.insert(same(printPreference))(any())).thenReturn(Future.successful(true))
-      when(mockPreferencesConnector.changeStatus(randomEntityId, pulledItem.callbackUrl, "succeeded")).thenReturn(Future.successful(true))
+      when(mockEntityResolverConnector.getTaxIdentifiers(pulledItem.entityId)).thenReturn(Future.successful(Right(Some(entity))))
+      when(mockRepo.insert(argEq(printPreference))(any())).thenReturn(Future.successful(true))
+      when(mockPreferencesConnector.changeStatus(pulledItem.callbackUrl, "succeeded")).thenReturn(Future.successful(true))
 
       preferencesProcessor.processUpdates().futureValue should be(true)
 
       verify(mockPreferencesConnector).pullWorkItem()(any())
       verify(mockEntityResolverConnector).getTaxIdentifiers(pulledItem.entityId)
-      verify(mockRepo).insert(same(printPreference))(any())
-      verify(mockPreferencesConnector).changeStatus(randomEntityId, pulledItem.callbackUrl, "succeeded")
+      verify(mockRepo).insert(argEq(printPreference))(any())
+      verify(mockPreferencesConnector).changeStatus(pulledItem.callbackUrl, "succeeded")
     }
   }
 
@@ -65,12 +67,12 @@ class PreferencesProcessorSpec extends UnitSpec with ScalaFutures with MockitoSu
     val mockEntityResolverConnector = mock[EntityResolverConnector]
     val mockRepo = mock[UpdatedPrintSuppressionsRepository]
 
-    implicit val hc = HeaderCarrier()
+
 
     val preferencesProcessor = new PreferencesProcessor {
       val preferencesConnector: PreferencesConnector = mockPreferencesConnector
-
       val entityResolverConnector: EntityResolverConnector = mockEntityResolverConnector
+      val repo = mockRepo
     }
 
     val randomUtr = Generate.utr

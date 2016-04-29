@@ -25,8 +25,8 @@ case class PulledItem(entityId: EntityId, paperless: Boolean, updatedAt: DateTim
 object PulledItem {
 
   implicit val formats = {
-    implicit val entityIdWrites = EntityId.write
-    implicit val dateWrites = RestFormats.dateTimeWrite
+    implicit val entityIdFormats = EntityId.formats
+    implicit val dateFormats = RestFormats.dateTimeFormats
     Json.format[PulledItem]
   }
 

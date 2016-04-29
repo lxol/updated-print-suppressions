@@ -17,6 +17,7 @@
 package uk.gov.hmrc.ups.model
 
 import play.api.libs.json._
+import play.api.libs.functional.syntax._
 
 case class EntityId(value: String) {
   override def toString = value
@@ -24,14 +25,16 @@ case class EntityId(value: String) {
 
 object EntityId {
 
-  implicit val read = new Reads[EntityId] {
+  private val read = new Reads[EntityId] {
     override def reads(json: JsValue): JsResult[EntityId] = json match {
       case JsString(s) => JsSuccess(EntityId(s))
       case _           => JsError("No entityId")
     }
   }
 
-  implicit val write = new Writes[EntityId] {
+  private val write = new Writes[EntityId] {
     override def writes(e: EntityId): JsValue = JsString(e.value)
   }
+
+  implicit val formats = Format(read, write)
 }

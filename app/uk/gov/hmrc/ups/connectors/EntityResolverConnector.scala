@@ -16,17 +16,25 @@
 
 package uk.gov.hmrc.ups.connectors
 
-import uk.gov.hmrc.play.http.HeaderCarrier
-import uk.gov.hmrc.play.http.ws.WSGet
+import play.api.http.Status._
+import uk.gov.hmrc.play.http.{HeaderCarrier, HttpGet, HttpReads, HttpResponse}
 import uk.gov.hmrc.ups.model.{Entity, EntityId}
 
-import scala.concurrent.Future
-
 trait EntityResolverConnector {
-  def getTaxIdentifiers(entityId: EntityId): Future[Option[Entity]] = ???
+
+  implicit object optionalEntityReads extends HttpReads[Int Either Option[Entity]] {
+    override def read(method: String, url: String, response: HttpResponse): Int Either Option[Entity] = response.status match {
+      case NOT_FOUND => Right(None)
+      case OK => Right(Some(response.json.as[Entity]))
+      case _ => Left(response.status)
+    }
+  }
+
+  def getTaxIdentifiers(entityId: EntityId)(implicit hc: HeaderCarrier) =
+    http.GET[Int Either Option[Entity]](s"$baseUrl/entity-resolver/$entityId")
 
 
-  def http: WSGet
+  def http: HttpGet
 
   def baseUrl: String
 
