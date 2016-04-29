@@ -20,6 +20,7 @@ import org.mockito.Mockito._
 import org.mockito.Matchers.{eq => argEq, _}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.mock.MockitoSugar
+import play.api.http.Status
 import uk.gov.hmrc.play.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
 import uk.gov.hmrc.time.DateTimeUtils
@@ -36,17 +37,11 @@ class PreferencesProcessorSpec extends UnitSpec with ScalaFutures with MockitoSu
   implicit val hc = HeaderCarrier()
 
   "Process outstanding updates" should {
-    //    "return result with zero if there are no updates to process" in new TestCase {
-    //      when(mockPreferencesConnector.pullWorkItem()).thenReturn(Future.successful(None))
-    ////      when(mockEntityResolverConnector.getTaxIdentifiers(entityId)).
-    //      preferencesProcessor.processUpdates().futureValue should be ()
-    //    }
-
     "return result with zero if there are no updates to process" in new TestCase {
       when(mockPreferencesConnector.pullWorkItem()(any())).thenReturn(Future.successful(Right(Some(pulledItem))))
       when(mockEntityResolverConnector.getTaxIdentifiers(pulledItem.entityId)).thenReturn(Future.successful(Right(Some(entity))))
       when(mockRepo.insert(argEq(printPreference))(any())).thenReturn(Future.successful(true))
-      when(mockPreferencesConnector.changeStatus(pulledItem.callbackUrl, "succeeded")).thenReturn(Future.successful(true))
+      when(mockPreferencesConnector.changeStatus(pulledItem.callbackUrl, "succeeded")).thenReturn(Future.successful(Status.OK))
 
       preferencesProcessor.processUpdates().futureValue should be(true)
 

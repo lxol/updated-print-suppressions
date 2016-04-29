@@ -18,15 +18,17 @@ package uk.gov.hmrc.ups.connectors
 
 import org.joda.time.{DateTime, Duration}
 import play.api.http.Status._
+import play.api.libs.json.{JsValue, Json}
 import uk.gov.hmrc.play.http._
 import uk.gov.hmrc.time.DateTimeUtils
 import uk.gov.hmrc.ups.model.{Filters, PulledItem, WorkItemRequest}
 
-import scala.concurrent.Future
-
 
 trait PreferencesConnector {
-  def changeStatus(callBackUrl: String, status: String): Future[Boolean] = ???
+  def changeStatus(callbackUrl: String, status: String)(implicit hc: HeaderCarrier) = {
+    val a = http.POST[JsValue, Int](callbackUrl, Json.obj("status" -> status))
+    a
+  }
 
   implicit object optionalPullItemReads extends HttpReads[Int Either Option[PulledItem]] {
     override def read(method: String, url: String, response: HttpResponse): Int Either Option[PulledItem] = response.status match {

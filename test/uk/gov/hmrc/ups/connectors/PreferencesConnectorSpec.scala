@@ -22,9 +22,8 @@ import org.mockito.Mockito._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.mock.MockitoSugar
 import play.api.http.Status
-import play.api.libs.json.Json
-import uk.gov.hmrc.play.http.HttpPost
-import uk.gov.hmrc.play.http.{HeaderCarrier, HttpResponse}
+import play.api.libs.json.{JsValue, Json}
+import uk.gov.hmrc.play.http.{HeaderCarrier, HttpPost, HttpResponse}
 import uk.gov.hmrc.play.test.UnitSpec
 import uk.gov.hmrc.time.DateTimeUtils
 import uk.gov.hmrc.ups.model.{Filters, PulledItem, WorkItemRequest}
@@ -62,15 +61,24 @@ class PreferencesConnectorSpec extends UnitSpec with ScalaFutures with MockitoSu
     }
   }
 
+  "change status" should {
+    "return OK if the succeeded status is updated successfully" in new TestCase {
+      val callbackUrl = "serviceUrl/updated-print-suppression/entityId/status"
+
+      when(connector.httpWrapper.postF[JsValue](any())).thenReturn(HttpResponse(Status.OK, None))
+
+      val result = connector.changeStatus(callbackUrl, "succeeded")
+        result.futureValue should be(Status.OK)
+
+      verify(connector.httpWrapper).postF[JsValue](any())
+    }
+  }
+
   trait TestCase {
     val httpMock = mock[HttpPost]
     val connector = new HttpPreferencesConnector
     val randomEntityId = Generate.entityId
-    val pullWorkItemUrl: String = "serviceUrl/updated-print-suppression/pull-work-item"
-
-    val sampleWorkItemRequest = WorkItemRequest(Filters(failedBefore = DateTimeUtils.now, availableBefore = DateTimeUtils.now))
   }
-
 }
 
 class HttpPreferencesConnector extends PreferencesConnector with MockHttpPost {
@@ -79,3 +87,4 @@ class HttpPreferencesConnector extends PreferencesConnector with MockHttpPost {
 
   def retryFailedUpdatesAfter: Duration = new Duration(1000)
 }
+
