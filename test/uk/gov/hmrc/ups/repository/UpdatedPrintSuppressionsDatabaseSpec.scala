@@ -26,7 +26,7 @@ import uk.gov.hmrc.play.test.UnitSpec
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-class CollectionsListRepositorySpec extends UnitSpec with MongoSpecSupport with ScalaFutures with BeforeAndAfterAll {
+class UpdatedPrintSuppressionsDatabaseSpec extends UnitSpec with MongoSpecSupport with ScalaFutures with BeforeAndAfterAll {
 
   override def beforeAll() = {
     super.beforeAll()
@@ -52,20 +52,14 @@ class CollectionsListRepositorySpec extends UnitSpec with MongoSpecSupport with 
         )
       )
 
-      new CollectionsListRepository().upsCollectionNames.futureValue should contain only(upsCollectionName1, upsCollectionName2)
+      new UpdatedPrintSuppressionsDatabase().upsCollectionNames.futureValue should contain only(upsCollectionName1, upsCollectionName2)
     }
   }
 
   "drop collection and return true if successful" in {
     val document = BSONDocument("test" -> "1")
-    await(
-      Future.sequence(
-        List(
-          bsonCollection("db-1")().insert(document)
-        )
-      )
-    )
-    await(new CollectionsListRepository().dropCollection("db-1"))
+    await(bsonCollection("db-1")().insert(document))
+    await(new UpdatedPrintSuppressionsDatabase().dropCollection("db-1"))
 
     mongo().collectionNames.futureValue should not contain ("db-1")
 

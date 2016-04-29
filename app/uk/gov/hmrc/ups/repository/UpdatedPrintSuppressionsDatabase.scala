@@ -22,7 +22,7 @@ import reactivemongo.api.collections.bson.BSONCollection
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class CollectionsListRepository(implicit db: () => DefaultDB) {
+class UpdatedPrintSuppressionsDatabase(implicit db: () => DefaultDB) {
 
   def dropCollection(collectionName: String)(implicit ec: ExecutionContext): Future[Unit] =
     db().collection[BSONCollection](collectionName).drop()
@@ -30,9 +30,10 @@ class CollectionsListRepository(implicit db: () => DefaultDB) {
   private def listCollectionNames(predicate: String => Boolean)(implicit ec: ExecutionContext): Future[List[String]] =
     db().collectionNames.map(_.filter(predicate))
 
-  def upsCollectionNames(implicit ec: ExecutionContext): Future[List[String]] = listCollectionNames(_.startsWith("updated"))
+  def upsCollectionNames(implicit ec: ExecutionContext): Future[List[String]] =
+    listCollectionNames(_.startsWith("updated"))
 
 }
-object CollectionsListRepository extends  MongoDbConnection  {
-  def apply(): CollectionsListRepository = new CollectionsListRepository
+object UpdatedPrintSuppressionsDatabase extends MongoDbConnection  {
+  def apply(): UpdatedPrintSuppressionsDatabase = new UpdatedPrintSuppressionsDatabase
 }

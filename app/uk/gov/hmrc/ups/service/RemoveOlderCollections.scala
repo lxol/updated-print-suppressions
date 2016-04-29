@@ -18,7 +18,7 @@ package uk.gov.hmrc.ups.service
 
 import org.joda.time.format.DateTimeFormat
 import org.joda.time.{Duration => jDuration, _}
-import uk.gov.hmrc.ups.repository.{CollectionsListRepository, UpdatedPrintSuppressions}
+import uk.gov.hmrc.ups.repository.{UpdatedPrintSuppressionsDatabase, UpdatedPrintSuppressions}
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
@@ -26,7 +26,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 trait RemoveOlderCollections extends DeleteCollectionFilter with SelectAndRemove {
 
-  def repository: CollectionsListRepository
+  def repository: UpdatedPrintSuppressionsDatabase
 
   def removeOlderThan(days: Duration)(implicit ec: ExecutionContext): Future[Totals] =
     compose(() => repository.upsCollectionNames, repository.dropCollection, filterUpsCollectionsOnly(_, days))
@@ -34,7 +34,7 @@ trait RemoveOlderCollections extends DeleteCollectionFilter with SelectAndRemove
 }
 
 object RemoveOlderCollections extends RemoveOlderCollections {
-  val repository = CollectionsListRepository()
+  val repository = UpdatedPrintSuppressionsDatabase()
 }
 
 trait SelectAndRemove {

@@ -16,9 +16,9 @@
 
 package uk.gov.hmrc.ups.config
 
-import play.api.Play
+import play.api.{Logger, Play}
 import uk.gov.hmrc.play.scheduling.ExclusiveScheduledJob
-import uk.gov.hmrc.ups.service.{RemoveOlderCollections, SelectAndRemove}
+import uk.gov.hmrc.ups.service._
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
@@ -27,16 +27,24 @@ object Jobs {
 
   import uk.gov.hmrc.play.config.RunMode.env
 
-  object RemoveOlderCollectionsJob extends ExclusiveScheduledJob with SelectAndRemove {
+  object RemoveOlderCollectionsJob extends ExclusiveScheduledJob {
 
-    override def executeInMutex(implicit ec: ExecutionContext): Future[RemoveOlderCollectionsJob.Result] = {
+    override def executeInMutex(implicit ec: ExecutionContext): Future[RemoveOlderCollectionsJob.Result] =
       RemoveOlderCollections.removeOlderThan(durationInDays).map { totals =>
+        (totals.failures ++ totals.successes).foreach {
+          case Succeeded(collectionName) =>
+            Logger.info(s"successfully removed collection $collectionName older than $durationInDays in $name job")
+
+          case Failed(collectionName, ex) =>
+            Logger.error(s"attempted to removed collection $collectionName and failed in $name job", ex)
+        }
         Result(
-          s"""$name completed with failures on collections [${totals.failures.mkString(",")}];
-             |${totals.successes.mkString(",")} were removed""".stripMargin
+          s"""$name completed with:
+             |- failures on collections [${totals.failures.map(_.collectionName).mkString(",")}]
+             |- collections [${totals.successes.map(_.collectionName).sorted.mkString(",")}] successfully removed
+             |""".stripMargin
         )
       }
-    }
 
     private lazy val durationInDays =
       Play.current.configuration.getInt(s"$env.$name.durationInDays")

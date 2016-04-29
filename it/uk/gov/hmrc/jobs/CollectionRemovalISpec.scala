@@ -2,48 +2,58 @@ package uk.gov.hmrc.jobs
 
 import org.joda.time.LocalDate
 import org.scalatest.BeforeAndAfterEach
-import org.scalatest.concurrent.{Eventually, IntegrationPatience}
-import uk.gov.hmrc.controllers.TestServer
+import org.scalatest.concurrent.{Eventually, IntegrationPatience, ScalaFutures}
+import play.api.test.FakeApplication
+// DO NOT DELETE reactivemongo.json.ImplicitBSONHandlers._ even if your IDE tells you it is unnecessary
+import reactivemongo.json.ImplicitBSONHandlers._
 import uk.gov.hmrc.mongo.MongoSpecSupport
-import uk.gov.hmrc.play.test.WithFakeApplication
+import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
+import uk.gov.hmrc.ups.config.Jobs
 import uk.gov.hmrc.ups.model.PrintPreference
-import uk.gov.hmrc.ups.repository.{MongoCounterRepository, UpdatedPrintSuppressions, UpdatedPrintSuppressionsRepository}
+import uk.gov.hmrc.ups.repository.UpdatedPrintSuppressions
 import uk.gov.hmrc.ups.service.RemoveOlderCollections
 
 import scala.concurrent.ExecutionContext.Implicits.global
-
 import scala.concurrent.Future
-import scala.concurrent.duration._
-//WithFakeApplication with
-class CollectionRemovalISpec extends TestServer with IntegrationPatience with Eventually with BeforeAndAfterEach {
 
+class CollectionRemovalISpec extends UnitSpec
+    with WithFakeApplication
+    with ScalaFutures
+    with MongoSpecSupport
+    with IntegrationPatience
+    with Eventually
+    with BeforeAndAfterEach {
+
+  val expirationPeriod = 3
+
+  override lazy val fakeApplication = FakeApplication(additionalConfiguration = Map(
+    s"mongodb.uri" -> s"mongodb://localhost:27017/$databaseName",
+    s"Test.removeOlderCollections.durationInDays" -> expirationPeriod,
+    s"Test.scheduling.removeOlderCollections.initialDelay" -> "10 days",
+    s"Test.scheduling.removeOlderCollections.interval" -> "24 hours"
+  ))
   override def beforeEach(): Unit = {
     super.beforeEach()
     await(mongo().drop())
   }
 
   "removeOlderThan" should {
-    "delete only those collections in the database that exceed the provided duration" in new SetUp {
-      val expirationPeriod = 3 days
-
-      (0 to 4) map daysFromToday foreach { date =>
-//        await(bsonCollection(date)().insert(document))
-        println(s"$dbName -- $date")
-        await(new UpdatedPrintSuppressionsRepository(date, counterName => new MongoCounterRepository(counterName)).
-          insert(pref))
+    "delete only those collections in the database that are older than the provided duration" in new SetUp {
+      await {
+        Future.sequence(
+          (0 to 4).toList.map { days => bsonCollection(repoName(days))().insert(PrintPreference.formats.writes(pref)) }
+        )
       }
 
-      private val names = await {
-        RemoveOlderCollections.repository.upsCollectionNames
-
-        //      RemoveOlderCollections.removeOlderThan(3 days)
-        //
-        //      RemoveOlderCollections.repository.upsCollectionNames.futureValue should contain only(
-        //        (3 to 4).map { repoName }: _*
-        //       )
+      eventually {
+        val msg = Jobs.RemoveOlderCollectionsJob.executeInMutex.futureValue.message
+        (3 to 4).map { repoName } forall { msg.contains(_) } shouldBe true
+        (0 to 2).map { x => msg.contains(repoName(x)) }.fold(false)( _ || _) shouldBe false
       }
-      println(names)
-      names.size shouldBe 5
+
+      eventually {
+        RemoveOlderCollections.repository.upsCollectionNames.futureValue should contain only ((0 to 2).map { repoName }: _*)
+      }
     }
   }
 
@@ -54,6 +64,5 @@ class CollectionRemovalISpec extends TestServer with IntegrationPatience with Ev
 
     def repoName(daysToDecrement : Int): String =
       UpdatedPrintSuppressions.repoNameTemplate(daysFromToday(daysToDecrement))
-
   }
 }
