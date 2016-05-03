@@ -19,6 +19,7 @@ package uk.gov.hmrc.ups.repository
 import org.joda.time.LocalDate
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.ScalaFutures
+import play.api.libs.json.Json
 import uk.gov.hmrc.mongo.MongoSpecSupport
 import uk.gov.hmrc.play.http.HeaderCarrier
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
@@ -87,6 +88,19 @@ class UpdatedPrintSuppressionsRepositorySpec extends UnitSpec with MongoSpecSupp
       all.size should be (1)
       await(all) shouldBe List(UpdatedPrintSuppressions(all.head._id, 0, preferenceWithSameId))
     }
+
+    "remove the entry by the given utr" in {
+      val utr: String = "11111111"
+      val pp = PrintPreference(utr, "someType", List.empty)
+
+      val repository = new UpdatedPrintSuppressionsRepository(TODAY, _ => counterRepoStub)
+
+      await(repository.insert(pp)) shouldBe true
+
+      await(repository.removeByUtr(pp.id)) shouldBe true
+      await(repository.findAll()) should be (empty)
+
+    }
   }
 
   "The counter repository" should {
@@ -102,9 +116,9 @@ class UpdatedPrintSuppressionsRepositorySpec extends UnitSpec with MongoSpecSupp
       val repositoryT0 = new MongoCounterRepository("test-counter")
       await(repositoryT0.next)
       val repositoryT1 = new MongoCounterRepository("test-counter")
-      val counter: Counter = repositoryT1.findAll().head
-      counter.value shouldBe 1
-      counter.name shouldBe "test-counter"
+      repositoryT1.findAll().map {
+        _.headOption.map(head => (head.value, head.name))
+      }.futureValue shouldBe Some((1, "test-counter"))
     }
 
     "increment and return the next value" in {
@@ -113,9 +127,9 @@ class UpdatedPrintSuppressionsRepositorySpec extends UnitSpec with MongoSpecSupp
       await(repository.next)
 
       repository.count.futureValue shouldBe 1
-      val counter: Counter = repository.findAll().head
-      counter.value shouldBe 2
-      counter.name shouldBe "test-counter"
+      repository.findAll().map {
+        _.headOption.map(head => (head.value, head.name))
+      }.futureValue shouldBe Some((2, "test-counter"))
     }
   }
 

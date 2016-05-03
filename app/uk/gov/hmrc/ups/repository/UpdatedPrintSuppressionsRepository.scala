@@ -46,6 +46,9 @@ class UpdatedPrintSuppressionsRepository(
                                         )(implicit mongo: () => DB, ec: ExecutionContext)
   extends ReactiveRepository[UpdatedPrintSuppressions, BSONObjectID](s"updated_print_suppressions_${date.toString("yyyyMMdd")}", mongo, UpdatedPrintSuppressions.formats) {
 
+  def removeByUtr(id: String): Future[Boolean] =
+    collection.remove(BSONDocument("printPreference.id" -> id)).map { _.ok }
+
   val counterRepo = repoCreator(date.toString("yyyyMMdd"))
 
   override def indexes: Seq[Index] =

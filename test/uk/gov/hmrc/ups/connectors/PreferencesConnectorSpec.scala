@@ -67,8 +67,7 @@ class PreferencesConnectorSpec extends UnitSpec with ScalaFutures with MockitoSu
 
       when(connector.httpWrapper.postF[JsValue](any())).thenReturn(HttpResponse(Status.OK, None))
 
-      val result = connector.changeStatus(callbackUrl, "succeeded")
-        result.futureValue should be(Status.OK)
+      connector.changeStatus(callbackUrl, "succeeded").futureValue should be(Status.OK)
 
       verify(connector.httpWrapper).postF[JsValue](any())
     }

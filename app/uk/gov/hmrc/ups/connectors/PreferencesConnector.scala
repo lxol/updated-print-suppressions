@@ -25,12 +25,8 @@ import uk.gov.hmrc.ups.model.{Filters, PulledItem, WorkItemRequest}
 
 
 trait PreferencesConnector {
-  def changeStatus(callbackUrl: String, status: String)(implicit hc: HeaderCarrier) = {
-    val a = http.POST[JsValue, Int](callbackUrl, Json.obj("status" -> status))
-    a
-  }
 
-  implicit object optionalPullItemReads extends HttpReads[Int Either Option[PulledItem]] {
+  implicit val optionalPullItemReads = new HttpReads[Int Either Option[PulledItem]] {
     override def read(method: String, url: String, response: HttpResponse): Int Either Option[PulledItem] = response.status match {
       case NO_CONTENT => Right(None)
       case OK => Right(Some(response.json.as[PulledItem]))
@@ -38,8 +34,16 @@ trait PreferencesConnector {
     }
   }
 
-  def pullWorkItem()(implicit hc: HeaderCarrier) =
+  implicit val statusReads = new HttpReads[Int] {
+    def read(method: String, url: String, response: HttpResponse): Int = response.status
+  }
+
+  def pullWorkItem()(implicit hc: HeaderCarrier) = {
     http.POST[WorkItemRequest, Int Either Option[PulledItem]](s"$serviceUrl/updated-print-suppression/pull-work-item", workItemRequest)
+  }
+
+  def changeStatus(callbackUrl: String, status: String)(implicit hc: HeaderCarrier) =
+    http.POST[JsValue, Int](callbackUrl, Json.obj("status" -> status))
 
   def retryFailedUpdatesAfter: Duration
 
@@ -50,4 +54,7 @@ trait PreferencesConnector {
   def http: HttpPost
 
   def serviceUrl: String
+
+  type URL = String
+
 }

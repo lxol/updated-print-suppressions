@@ -16,16 +16,30 @@
 
 package uk.gov.hmrc.ups.scheduled
 
+import play.api.Logger
+import play.api.http.Status._
 import uk.gov.hmrc.domain.SaUtr
 import uk.gov.hmrc.play.http.HeaderCarrier
-import uk.gov.hmrc.ups.connectors.{PreferencesConnector, EntityResolverConnector}
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
+import uk.gov.hmrc.ups.connectors.{EntityResolverConnector, PreferencesConnector}
 import uk.gov.hmrc.ups.model.PrintPreference
 import uk.gov.hmrc.ups.repository.UpdatedPrintSuppressionsRepository
 
 import scala.concurrent.Future
 
+object PreferencesProcessor extends PreferencesProcessor {
+  def formIds: List[String] = ???
+
+  def preferencesConnector: PreferencesConnector = ???
+
+  def repo: UpdatedPrintSuppressionsRepository = ???
+
+  def entityResolverConnector: EntityResolverConnector = ???
+}
+
 trait PreferencesProcessor {
+
+  def formIds: List[String]
 
   def entityResolverConnector: EntityResolverConnector
 
@@ -33,28 +47,65 @@ trait PreferencesProcessor {
 
   def repo: UpdatedPrintSuppressionsRepository
 
-
   def processUpdates()(implicit hc: HeaderCarrier): Future[Boolean] = {
-    preferencesConnector.pullWorkItem() map {
+    preferencesConnector.pullWorkItem() flatMap {
       case Right(Some(item)) => {
-        entityResolverConnector.getTaxIdentifiers(item.entityId) map {
+        entityResolverConnector.getTaxIdentifiers(item.entityId) flatMap {
           case Right(Some(entity)) => {
             entity.taxIdentifiers.collectFirst[SaUtr]{case utr: SaUtr => utr} match {
-              case Some(utr) => {
-                repo.insert(PrintPreference(utr.value, "sautr", List("formId"))) map {
-                  case true => preferencesConnector.changeStatus(item.callbackUrl, "succeeded")
-                  case false => throw new RuntimeException("insert into repo failed")
-                }
-              }
-              case None => throw new RuntimeException("no utr found from the entity")
+              case Some(utr) => insertAndUpdate(
+                utr, if (item.paperless) formIds else List.empty, item.callbackUrl
+              )
+              case None => ???
             }
-
           }
-          case _ => throw new RuntimeException("Fail with entity resolver connector")
+          case Right(None) =>
+            Logger.warn(s"failed to retrieve ${item.entityId} from entity resolver")
+            preferencesConnector.changeStatus(item.callbackUrl, "permanently-failed").map {
+              case OK => true
+              case x =>
+                Logger.info(
+                  s"""
+                     |could not change status to permanently-failed for entity id = ${item.entityId}
+                     |response status code was $x"
+                       """.stripMargin
+                )
+                true
+            }
+          case Left(status) =>
+            Logger.warn(s"failed to connect entity-resolver [status = $status] with [entityId = ${item.entityId}]")
+            preferencesConnector.changeStatus(item.callbackUrl, "failed").map {
+              case OK => true
+              case x =>
+                Logger.info(
+                  s"""
+                     |could not change status to failed for entity id = ${item.entityId}
+                     |response status code was $x"
+                       """.stripMargin
+                )
+                true
+            }
         }
       }
+      case Right(None) => Future.successful(true)
       case _ => throw new RuntimeException("Fail with preference connector")
     }
-    Future.successful(true)
   }
+
+  def insertAndUpdate(utr: SaUtr, formIds: List[String], callbackUrl: String)
+                     (implicit hc: HeaderCarrier): Future[Boolean] =
+    repo.insert(PrintPreference(utr.value, "sautr", formIds)).
+      flatMap { result =>
+        if (result) preferencesConnector.changeStatus(callbackUrl, "succeeded")
+        else Future.failed(new RuntimeException(s"Failed to insert utr $utr.value"))
+      }.
+      flatMap {
+        case status @ (OK | CONFLICT) => Future.successful(true)
+        case _ => repo.removeByUtr(utr.value).map(_ => false)
+      }.
+      recoverWith { case ex =>
+        Logger.warn(s"failed to include $utr in updated print suppressions", ex)
+        // TODO: change this when boolean is refactored
+        preferencesConnector.changeStatus(callbackUrl, "failed").map { _ => false }
+      }
 }
