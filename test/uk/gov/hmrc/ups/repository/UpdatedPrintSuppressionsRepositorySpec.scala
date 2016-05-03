@@ -52,6 +52,7 @@ class UpdatedPrintSuppressionsRepositorySpec extends UnitSpec with MongoSpecSupp
     "increment the counter and save the updated print suppression" in {
       val repository = new UpdatedPrintSuppressionsRepository(TODAY, _ => counterRepoStub)
 
+
       val ppOne = PrintPreference("11111111", "someType", List.empty)
       val ppTwo = PrintPreference("22222222", "someType", List.empty)
 

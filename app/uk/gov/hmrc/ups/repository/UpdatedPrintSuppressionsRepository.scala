@@ -38,18 +38,19 @@ object UpdatedPrintSuppressions {
   implicit val pp = PrintPreference.formats
 
   val formats = Json.format[UpdatedPrintSuppressions]
+  val datePattern = "yyyyMMdd"
+  def toString(date: LocalDate) = date.toString(datePattern)
+  def repoNameTemplate(date: LocalDate) = s"updated_print_suppressions_${toString(date)}"
 }
 
-class UpdatedPrintSuppressionsRepository(
-                                          date: LocalDate,
-                                          repoCreator: String => CounterRepository
-                                        )(implicit mongo: () => DB, ec: ExecutionContext)
-  extends ReactiveRepository[UpdatedPrintSuppressions, BSONObjectID](s"updated_print_suppressions_${date.toString("yyyyMMdd")}", mongo, UpdatedPrintSuppressions.formats) {
+class UpdatedPrintSuppressionsRepository(date: LocalDate, repoCreator: String => CounterRepository)
+                                        (implicit mongo: () => DB, ec: ExecutionContext)
+  extends ReactiveRepository[UpdatedPrintSuppressions, BSONObjectID](UpdatedPrintSuppressions.repoNameTemplate(date), mongo, UpdatedPrintSuppressions.formats) {
 
   def removeByUtr(id: String): Future[Boolean] =
     collection.remove(BSONDocument("printPreference.id" -> id)).map { _.ok }
 
-  val counterRepo = repoCreator(date.toString("yyyyMMdd"))
+  val counterRepo = repoCreator(UpdatedPrintSuppressions.toString(date))
 
   override def indexes: Seq[Index] =
     Seq(
@@ -105,7 +106,6 @@ trait CounterRepository {
 
 class MongoCounterRepository(counterName: String)(implicit mongo: () => DB, ec: ExecutionContext)
   extends ReactiveRepository[Counter, BSONObjectID]("counters", mongo, Counter.formats, ReactiveMongoFormats.objectIdFormats) with CounterRepository {
-
 
   override def indexes: Seq[Index] =
     Seq(Index(Seq("name" -> IndexType.Ascending), name = Some("nameIdx"), unique = true, sparse = false))
