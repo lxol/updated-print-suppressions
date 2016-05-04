@@ -19,10 +19,11 @@ package uk.gov.hmrc.ups.repository
 import org.joda.time.LocalDate
 import play.api.libs.json.Json
 import reactivemongo.api.{ReadPreference, DB}
-import reactivemongo.api.commands.WriteResult
+import reactivemongo.api.commands.{UpdateWriteResult, WriteResult}
 import reactivemongo.api.indexes.{Index, IndexType}
 import reactivemongo.bson.{BSONDocument, BSONObjectID}
 import reactivemongo.core.commands.{FindAndModify, Update}
+import reactivemongo.core.errors.DatabaseException
 import uk.gov.hmrc.mongo.ReactiveRepository
 import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 import uk.gov.hmrc.ups.model.PrintPreference
@@ -72,22 +73,25 @@ class UpdatedPrintSuppressionsRepository(date: LocalDate, repoCreator: String =>
   }
 
   def insert(printPreference: PrintPreference)(implicit ec: ExecutionContext): Future[Boolean] = {
-
     val selector = BSONDocument("printPreference.id" -> printPreference.id, "printPreference.idType" -> printPreference.idType)
-    collection.find(selector).one[UpdatedPrintSuppressions].flatMap {
 
-      case Some(ups) =>
-        collection.update(
-          selector = BSONDocument("_id" -> ups._id),
-          update = UpdatedPrintSuppressions.formats.writes(ups.copy(printPreference = printPreference))
-        )
+    def doInsert(attempt: Int): Future[WriteResult] =
+      collection.find(selector).one[UpdatedPrintSuppressions].flatMap {
 
+        case Some(ups) =>
+          collection.update(
+            selector = BSONDocument("_id" -> ups._id),
+            update = UpdatedPrintSuppressions.formats.writes(ups.copy(printPreference = printPreference))
+          )
 
-      case None => counterRepo.next.flatMap(counter =>
-        super.insert(new UpdatedPrintSuppressions(BSONObjectID.generate, counter, printPreference))
-      )
-
-    }.map(_.ok)
+        case None => counterRepo.next.flatMap(counter =>
+          super.insert(UpdatedPrintSuppressions(BSONObjectID.generate, counter, printPreference)).recoverWith {
+            case e: DatabaseException if e.code == Some(11000) && attempt < 3 =>
+              doInsert(attempt + 1)
+            case ex => Future.failed(ex)
+          })
+      }
+      doInsert(1).map(_.ok)
   }
 }
 

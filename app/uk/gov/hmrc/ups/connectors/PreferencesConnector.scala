@@ -55,6 +55,4 @@ trait PreferencesConnector {
 
   def serviceUrl: String
 
-  type URL = String
-
 }

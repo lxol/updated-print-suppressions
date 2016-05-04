@@ -26,7 +26,7 @@ import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
 import uk.gov.hmrc.play.test.UnitSpec
 import uk.gov.hmrc.ups.model.PrintPreference
 
-import scala.concurrent.{Future, ExecutionContext}
+import scala.concurrent.{Promise, Future, ExecutionContext}
 
 class UpdatedPrintSuppressionsRepositorySpec extends UnitSpec with MongoSpecSupport with BeforeAndAfterEach with ScalaFutures {
   implicit val hc = HeaderCarrier()
@@ -102,6 +102,28 @@ class UpdatedPrintSuppressionsRepositorySpec extends UnitSpec with MongoSpecSupp
       await(repository.findAll()) should be (empty)
 
     }
+
+    "duplicate keys due to race conditions are recoverable" in {
+      val utr: String = "11111111"
+
+      val repository = new UpdatedPrintSuppressionsRepository(TODAY, _ => counterRepoStub)
+
+      val isFirstCompletedFirst = await(
+        Future.firstCompletedOf(
+          List(
+            repository.insert(PrintPreference(utr, "someType", List.empty)).map { _ => true },
+            repository.insert(PrintPreference(utr, "someType", List("something"))).map { _ => false }
+          )
+        )
+      )
+
+      val expectedResult = if (isFirstCompletedFirst) List.empty else List("something")
+
+      repository.findAll().map(
+        _.find(_.printPreference.id == utr).map(_.printPreference.formIds)
+      ).futureValue shouldBe Some(expectedResult)
+    }
+
   }
 
   "The counter repository" should {
