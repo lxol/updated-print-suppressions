@@ -56,12 +56,12 @@ private object AppDependencies {
   object Test {
     def apply() = new TestDependencies {
       override lazy val test = Seq(
-        "uk.gov.hmrc" %% "hmrctest" % hmrcTestVersion % scope,
-        "org.scalatest" %% "scalatest" % "2.2.6" % scope,
-        "org.pegdown" % "pegdown" % "1.5.0" % scope,
-        "com.typesafe.play" %% "play-test" % PlayVersion.current % scope,
-        "uk.gov.hmrc" %% "reactivemongo-test" % "1.5.0" % scope
-      )
+        "uk.gov.hmrc" %% "hmrctest" % hmrcTestVersion,
+        "org.scalatest" %% "scalatest" % "2.2.6",
+        "org.pegdown" % "pegdown" % "1.5.0",
+        "com.typesafe.play" %% "play-test" % PlayVersion.current,
+        "uk.gov.hmrc" %% "reactivemongo-test" % "1.5.0"
+      ).map (_ % scope)
     }.test
   }
 
@@ -71,12 +71,13 @@ private object AppDependencies {
       override lazy val scope: String = "it"
 
       override lazy val test = Seq(
-        "uk.gov.hmrc" %% "hmrctest" % hmrcTestVersion % scope,
-        "org.scalatest" %% "scalatest" % "2.2.6" % scope,
-        "org.pegdown" % "pegdown" % "1.5.0" % scope,
-        "com.typesafe.play" %% "play-test" % PlayVersion.current % scope,
-        "uk.gov.hmrc" %% "reactivemongo-test" % "1.5.0" % scope
-      )
+        "uk.gov.hmrc" %% "hmrctest" % hmrcTestVersion,
+        "org.scalatest" %% "scalatest" % "2.2.6",
+        "org.pegdown" % "pegdown" % "1.5.0",
+        "com.typesafe.play" %% "play-test" % PlayVersion.current,
+        "uk.gov.hmrc" %% "reactivemongo-test" % "1.5.0",
+        "uk.gov.hmrc" %% "auth-test" % "2.2.0"
+      ).map(_  % scope)
     }.test
   }
 

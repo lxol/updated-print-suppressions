@@ -17,7 +17,9 @@
 package uk.gov.hmrc.ups.config
 
 import play.api.{Logger, Play}
-import uk.gov.hmrc.play.scheduling.ExclusiveScheduledJob
+import uk.gov.hmrc.play.config.RunMode
+import uk.gov.hmrc.play.scheduling.{ScheduledJob, ExclusiveScheduledJob}
+import uk.gov.hmrc.ups.scheduled.PreferencesProcessor
 import uk.gov.hmrc.ups.service._
 
 import scala.concurrent.duration._
@@ -64,4 +66,25 @@ object Jobs {
     lazy val interval = durationFromConfig("interval")
   }
 
+  object UpdatedPrintSuppressionJob extends ExclusiveScheduledJob with DurationFromConfig {
+
+    def executeInMutex(implicit ec: ExecutionContext): Future[UpdatedPrintSuppressionJob.Result] = {
+      PreferencesProcessor.run.map(Result)
+    }
+
+    override val name: String = "updatedPrintSuppressions"
+  }
+
+  trait DurationFromConfig { self: ExclusiveScheduledJob =>
+    private def durationFromConfig(propertyKey: String) = {
+      Play.current.configuration.getMilliseconds(s"$env.scheduling.$name.$propertyKey")
+        .getOrElse(throw new IllegalStateException(s"Config key $env.scheduling.$name.$propertyKey missing"))
+        .milliseconds
+    }
+
+    lazy val initialDelay = durationFromConfig("initialDelay")
+
+    lazy val interval = durationFromConfig("interval")
+  }
 }
+

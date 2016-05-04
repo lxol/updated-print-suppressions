@@ -18,6 +18,7 @@ package uk.gov.hmrc.ups.scheduled
 
 import play.api.Logger
 import play.api.http.Status._
+import play.api.libs.iteratee.Enumerator
 import uk.gov.hmrc.domain.SaUtr
 import uk.gov.hmrc.play.http.HeaderCarrier
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
@@ -26,16 +27,6 @@ import uk.gov.hmrc.ups.model.PrintPreference
 import uk.gov.hmrc.ups.repository.UpdatedPrintSuppressionsRepository
 
 import scala.concurrent.Future
-
-object PreferencesProcessor extends PreferencesProcessor {
-  def formIds: List[String] = ???
-
-  def preferencesConnector: PreferencesConnector = ???
-
-  def repo: UpdatedPrintSuppressionsRepository = ???
-
-  def entityResolverConnector: EntityResolverConnector = ???
-}
 
 trait PreferencesProcessor {
 
@@ -47,7 +38,12 @@ trait PreferencesProcessor {
 
   def repo: UpdatedPrintSuppressionsRepository
 
-  def processUpdates()(implicit hc: HeaderCarrier): Future[Boolean] = {
+  def run: Future[String] = {
+    implicit val hc: HeaderCarrier = HeaderCarrier()
+    val pullWorkItems = Enumerator.generateM(processUpdates)
+  }
+
+  def processUpdates(implicit hc: HeaderCarrier): Future[Boolean] = {
     preferencesConnector.pullWorkItem() flatMap {
       case Right(Some(item)) => {
         entityResolverConnector.getTaxIdentifiers(item.entityId) flatMap {
@@ -108,4 +104,14 @@ trait PreferencesProcessor {
         // TODO: change this when boolean is refactored
         preferencesConnector.changeStatus(callbackUrl, "failed").map { _ => false }
       }
+}
+
+object PreferencesProcessor extends PreferencesProcessor {
+  def formIds: List[String] = ???
+
+  def preferencesConnector: PreferencesConnector = ???
+
+  def repo: UpdatedPrintSuppressionsRepository = ???
+
+  def entityResolverConnector: EntityResolverConnector = ???
 }

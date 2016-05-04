@@ -75,6 +75,8 @@ class UpdatedPrintSuppressionsRepository(date: LocalDate, repoCreator: String =>
   def insert(printPreference: PrintPreference)(implicit ec: ExecutionContext): Future[Boolean] = {
     val selector = BSONDocument("printPreference.id" -> printPreference.id, "printPreference.idType" -> printPreference.idType)
 
+    val maxAttempts = 10
+
     def doInsert(attempt: Int): Future[WriteResult] =
       collection.find(selector).one[UpdatedPrintSuppressions].flatMap {
 
@@ -86,7 +88,7 @@ class UpdatedPrintSuppressionsRepository(date: LocalDate, repoCreator: String =>
 
         case None => counterRepo.next.flatMap(counter =>
           super.insert(UpdatedPrintSuppressions(BSONObjectID.generate, counter, printPreference)).recoverWith {
-            case e: DatabaseException if e.code == Some(11000) && attempt < 3 =>
+            case e: DatabaseException if e.code == Some(11000) && attempt < maxAttempts =>
               doInsert(attempt + 1)
             case ex => Future.failed(ex)
           })
