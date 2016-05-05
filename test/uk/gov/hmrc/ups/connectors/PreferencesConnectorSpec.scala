@@ -38,7 +38,7 @@ class PreferencesConnectorSpec extends UnitSpec with ScalaFutures with MockitoSu
       val pulledItem = PulledItem(randomEntityId, true, DateTimeUtils.now, "someUrl")
       when(connector.httpWrapper.postF[PulledItem](any())).thenReturn(HttpResponse(Status.OK, Some(Json.toJson(pulledItem))))
 
-      connector.pullWorkItem().futureValue should be(Right(Some(pulledItem)))
+      connector.pullWorkItem.futureValue should be(Some(Right(pulledItem)))
 
       verify(connector.httpWrapper).postF[PulledItem](any())
     }
@@ -46,7 +46,7 @@ class PreferencesConnectorSpec extends UnitSpec with ScalaFutures with MockitoSu
     "return None if there no work item" in new TestCase {
       when(connector.httpWrapper.postF[PulledItem](any())).thenReturn(HttpResponse(Status.NO_CONTENT, None))
 
-      connector.pullWorkItem().futureValue should be(Right(None))
+      connector.pullWorkItem.futureValue should be(None)
 
       verify(connector.httpWrapper).postF[PulledItem](any())
     }
@@ -55,7 +55,7 @@ class PreferencesConnectorSpec extends UnitSpec with ScalaFutures with MockitoSu
       val expectedStatus: Int = Status.NOT_FOUND
       when(connector.httpWrapper.postF[PulledItem](any())).thenReturn(HttpResponse(expectedStatus, None))
 
-      connector.pullWorkItem().futureValue should be(Left(expectedStatus))
+      connector.pullWorkItem.futureValue should be (Some(Left(expectedStatus)))
 
       verify(connector.httpWrapper).postF[PulledItem](any())
     }

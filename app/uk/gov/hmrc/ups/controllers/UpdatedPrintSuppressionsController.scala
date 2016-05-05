@@ -40,7 +40,7 @@ trait UpdatedPrintSuppressionsController extends BaseController {
       pastLocalDateBinder.bind("updated-on", request.queryString) match {
         case Some(Right(updatedOn)) =>
 
-          val repository = new UpdatedPrintSuppressionsRepository(updatedOn.value, counterName => new MongoCounterRepository(counterName))
+          val repository = new UpdatedPrintSuppressionsRepository(updatedOn.value, counterName => MongoCounterRepository(counterName))
           val limit = optLimit.getOrElse(Limit.max)
           val offset = optOffset.getOrElse(0)
           for {

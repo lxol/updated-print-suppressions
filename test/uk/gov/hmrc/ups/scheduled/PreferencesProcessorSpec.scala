@@ -36,68 +36,64 @@ class PreferencesProcessorSpec extends UnitSpec with ScalaFutures with MockitoSu
 
   implicit val hc = HeaderCarrier()
 
+  "processWorkItem" should {
+    "always indicate that the pull failed when presented with a non-200 level status code" in new TestCase {
+      preferencesProcessor.processWorkItem.
+        apply(Left(400)).futureValue shouldBe Failed(
+          "Pull from preferences failed with status code = 400", None
+      )
+    }
+  }
+
   "Process outstanding updates" should {
     "return true when an updated preference is resolved and stored" in new TestCase {
-      when(mockPreferencesConnector.pullWorkItem()(any())).thenReturn(Future.successful(Right(Some(pulledItem))))
-      when(mockEntityResolverConnector.getTaxIdentifiers(pulledItem.entityId)).thenReturn(Future.successful(Right(Some(entity))))
-      when(mockRepo.insert(argEq(printPreference))(any())).thenReturn(Future.successful(true))
-      when(mockPreferencesConnector.changeStatus(pulledItem.callbackUrl, succeeded)).thenReturn(Future.successful(OK))
+      when(mockEntityResolverConnector.getTaxIdentifiers(pulledItem.entityId)).
+        thenReturn(Future.successful(Right(Some(entity))))
+      when(mockRepo.insert(argEq(printPreference))(any())).
+        thenReturn(Future.successful(true))
+      when(mockPreferencesConnector.changeStatus(pulledItem.callbackUrl, succeeded)).
+        thenReturn(Future.successful(OK))
 
-      preferencesProcessor.processUpdates.futureValue should be(true)
+      preferencesProcessor.processUpdates(pulledItem).futureValue should be(true)
 
-      verify(mockPreferencesConnector).pullWorkItem()(any())
       verify(mockEntityResolverConnector).getTaxIdentifiers(pulledItem.entityId)
       verify(mockRepo).insert(argEq(printPreference))(any())
       verify(mockPreferencesConnector).changeStatus(pulledItem.callbackUrl, succeeded)
     }
 
-    "return true if no more pulled item from preference" in new TestCase {
-      when(mockPreferencesConnector.pullWorkItem()(any())).thenReturn(Future.successful(Right(None)))
-
-      preferencesProcessor.processUpdates.futureValue should be(true)
-
-      verify(mockPreferencesConnector).pullWorkItem()(any())
-    }
-
     "return true the user opted out digital" in new TestCase {
       val optedOut = printPreference.copy(formIds = List.empty)
 
-      when(mockPreferencesConnector.pullWorkItem()(any())).thenReturn(Future.successful(Right(Some(pulledItem.copy(paperless = false)))))
       when(mockEntityResolverConnector.getTaxIdentifiers(pulledItem.entityId)).thenReturn(Future.successful(Right(Some(entity))))
       when(mockRepo.insert(argEq(optedOut))(any())).thenReturn(Future.successful(true))
       when(mockPreferencesConnector.changeStatus(pulledItem.callbackUrl, succeeded)).thenReturn(Future.successful(OK))
 
-      preferencesProcessor.processUpdates.futureValue should be(true)
+      preferencesProcessor.processUpdates(pulledItem.copy(paperless = false)).
+        futureValue should be(true)
 
-      verify(mockPreferencesConnector).pullWorkItem()(any())
       verify(mockEntityResolverConnector).getTaxIdentifiers(pulledItem.entityId)
       verify(mockRepo).insert(argEq(optedOut))(any())
       verify(mockPreferencesConnector).changeStatus(pulledItem.callbackUrl, succeeded)
     }
 
     "return true if no entry found for the given utr" in new TestCase {
-
-      when(mockPreferencesConnector.pullWorkItem()(any())).thenReturn(Future.successful(Right(Some(pulledItem.copy(paperless = false)))))
       when(mockEntityResolverConnector.getTaxIdentifiers(pulledItem.entityId)).thenReturn(Future.successful(Right(None)))
       when(mockPreferencesConnector.changeStatus(pulledItem.callbackUrl, permanentlyFailed)).thenReturn(Future.successful(OK))
 
-      preferencesProcessor.processUpdates.futureValue should be(true)
+      preferencesProcessor.processUpdates(pulledItem.copy(paperless = false)).
+        futureValue should be(true)
 
-      verify(mockPreferencesConnector).pullWorkItem()(any())
       verify(mockEntityResolverConnector).getTaxIdentifiers(pulledItem.entityId)
       verifyZeroInteractions(mockRepo)
       verify(mockPreferencesConnector).changeStatus(pulledItem.callbackUrl, permanentlyFailed)
     }
 
     "return true if there is any error comunicated with entity resolver" in new TestCase {
-
-      when(mockPreferencesConnector.pullWorkItem()(any())).thenReturn(Future.successful(Right(Some(pulledItem.copy(paperless = false)))))
       when(mockEntityResolverConnector.getTaxIdentifiers(pulledItem.entityId)).thenReturn(Future.successful(Left(BAD_GATEWAY)))
       when(mockPreferencesConnector.changeStatus(pulledItem.callbackUrl, failed)).thenReturn(Future.successful(OK))
 
-      preferencesProcessor.processUpdates.futureValue should be(true)
+      preferencesProcessor.processUpdates(pulledItem.copy(paperless = false)).futureValue should be(true)
 
-      verify(mockPreferencesConnector).pullWorkItem()(any())
       verify(mockEntityResolverConnector).getTaxIdentifiers(pulledItem.entityId)
       verifyZeroInteractions(mockRepo)
       verify(mockPreferencesConnector).changeStatus(pulledItem.callbackUrl, failed)

@@ -75,5 +75,5 @@ class EntityResolverConnectorSpec extends UnitSpec with MockitoSugar with ScalaF
 }
 
 class HttpEntityResolverConnector extends EntityResolverConnector with MockHttpGet {
-  def baseUrl: String = "baseUrl"
+  def serviceUrl = "baseUrl"
 }

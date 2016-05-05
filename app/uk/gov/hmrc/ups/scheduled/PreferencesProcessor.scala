@@ -16,19 +16,21 @@
 
 package uk.gov.hmrc.ups.scheduled
 
-import play.api.Logger
+import org.joda.time.LocalDate
+import play.api.{Play, Logger}
 import play.api.http.Status._
 import play.api.libs.iteratee.{ Enumerator, Iteratee }
+import play.modules.reactivemongo.ReactiveMongoPlugin
 import uk.gov.hmrc.domain.SaUtr
 import uk.gov.hmrc.play.http.HeaderCarrier
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
 import uk.gov.hmrc.ups.connectors.{EntityResolverConnector, PreferencesConnector}
-import uk.gov.hmrc.ups.model.PrintPreference
-import uk.gov.hmrc.ups.repository.UpdatedPrintSuppressionsRepository
+import uk.gov.hmrc.ups.model.{PulledItem, PrintPreference}
+import uk.gov.hmrc.ups.repository.{MongoCounterRepository, UpdatedPrintSuppressionsRepository}
 
 import scala.concurrent.Future
 
-import scala.concurrent.ExecutionContext
+
 
 trait PreferencesProcessor {
 
@@ -40,70 +42,58 @@ trait PreferencesProcessor {
 
   def repo: UpdatedPrintSuppressionsRepository
 
-  // TODO: pass in header carrier or ec?
-  def run(implicit ec: ExecutionContext): Future[TotalCounts] =
-    Enumerator.generateM(pull(HeaderCarrier())).
+  def run(implicit hc: HeaderCarrier): Future[TotalCounts] =
+    Enumerator.generateM(preferencesConnector.pullWorkItem).
       run(
-        Iteratee.foldM(TotalCounts(0, 0)) { (totals, result) =>
-          Future.successful(
-            result match {
-              case Succeeded(_) =>
-                totals.copy(processed = totals.processed + 1)
-                
-              case Failed(_,_) =>
-                totals.copy(failed = totals.failed + 1)
-            }
-          )
+        Iteratee.foldM(TotalCounts(0, 0)) { (accumulator, pulledWorkItemResult) =>
+          processWorkItem.apply(pulledWorkItemResult).map {
+            case Succeeded(_) =>
+              accumulator.copy(processed = accumulator.processed + 1)
+
+            case Failed(_,_) =>
+              accumulator.copy(failed = accumulator.failed + 1)
+          }
         }
       )
 
-  def pull(implicit hc: HeaderCarrier): Future[Option[ProcessingState]] = ???
-    
+  type PulledWorkItemResult = Either[Int, PulledItem]
 
-  def processUpdates(implicit hc: HeaderCarrier): Future[Boolean] = {
-    preferencesConnector.pullWorkItem() flatMap {
-      case Right(Some(item)) => {
-        entityResolverConnector.getTaxIdentifiers(item.entityId) flatMap {
-          case Right(Some(entity)) => {
-            entity.taxIdentifiers.collectFirst[SaUtr]{case utr: SaUtr => utr} match {
-              case Some(utr) => insertAndUpdate(
-                utr, if (item.paperless) formIds else List.empty, item.callbackUrl
-              )
-              case None => ???
-            }
-          }
-          case Right(None) =>
-            Logger.warn(s"failed to retrieve ${item.entityId} from entity resolver")
-            preferencesConnector.changeStatus(item.callbackUrl, "permanently-failed").map {
-              case OK => true
-              case x =>
-                Logger.info(
-                  s"""
-                     |could not change status to permanently-failed for entity id = ${item.entityId}
-                     |response status code was $x"
-                       """.stripMargin
-                )
-                true
-            }
-          case Left(status) =>
-            Logger.warn(s"failed to connect entity-resolver [status = $status] with [entityId = ${item.entityId}]")
-            preferencesConnector.changeStatus(item.callbackUrl, "failed").map {
-              case OK => true
-              case x =>
-                Logger.info(
-                  s"""
-                     |could not change status to failed for entity id = ${item.entityId}
-                     |response status code was $x"
-                       """.stripMargin
-                )
-                true
-            }
-        }
-      }
-      case Right(None) => Future.successful(true)
-      case _ => throw new RuntimeException("Fail with preference connector")
+  def processWorkItem(implicit hc: HeaderCarrier): PulledWorkItemResult => Future[ProcessingState] = {
+    // TODO: for now continue when we get a non-200 level error from prefs, but is this what we really want to do?
+    case Left(error) => Future.successful(
+      Failed(s"Pull from preferences failed with status code = $error")
+    )
+
+    case Right(item) => processUpdates(item).map { _ =>
+      Succeeded(s"copied data from preferences with ${item.entityId}")
     }
   }
+
+  def processUpdates(item: PulledItem)(implicit hc: HeaderCarrier): Future[Boolean] =
+    entityResolverConnector.getTaxIdentifiers(item.entityId).flatMap {
+      case Right(Some(entity)) => {
+        entity.taxIdentifiers.collectFirst[SaUtr] { case utr: SaUtr => utr} match {
+          case Some(utr) => insertAndUpdate(
+            utr, if (item.paperless) formIds else List.empty, item.callbackUrl
+          )
+          case None => ???
+        }
+      }
+      case x =>
+        val status = if (x.isRight) "permanently-failed" else "failed"
+        Logger.warn(s"failed to process ${item.entityId} from entity resolver")
+        preferencesConnector.changeStatus(item.callbackUrl, status).map {
+          case OK => true
+          case x =>
+            Logger.info(
+              s"""
+                 |could not change status to $status for entity id = ${item.entityId}
+                 |response status code was $x"
+                       """.stripMargin
+            )
+            true
+        }
+    }
 
   def insertAndUpdate(utr: SaUtr, formIds: List[String], callbackUrl: String)
                      (implicit hc: HeaderCarrier): Future[Boolean] =
@@ -124,16 +114,30 @@ trait PreferencesProcessor {
 }
 
 object PreferencesProcessor extends PreferencesProcessor {
-  def formIds: List[String] = ???
+  private implicit val connection = {
+    import play.api.Play.current
+    ReactiveMongoPlugin.mongoConnector.db
+  }
 
-  def preferencesConnector: PreferencesConnector = ???
+  import scala.concurrent.ExecutionContext.Implicits.global
 
-  def repo: UpdatedPrintSuppressionsRepository = ???
+  lazy val formIds: List[String] =
+    Play.current.configuration.getStringSeq("form-types.saAll").
+      getOrElse(throw new RuntimeException(s"configuration property form-types is not set")).
+      toList
 
-  def entityResolverConnector: EntityResolverConnector = ???
+  def preferencesConnector: PreferencesConnector = PreferencesConnector
+
+  def repo: UpdatedPrintSuppressionsRepository =
+    new UpdatedPrintSuppressionsRepository(
+      LocalDate.now(),
+      counterName => MongoCounterRepository(counterName)
+    )
+
+  def entityResolverConnector: EntityResolverConnector = EntityResolverConnector
 }
 
 sealed trait ProcessingState extends Product with Serializable
 final case class Succeeded(msg: String) extends ProcessingState
-final case class Failed(msg: String, ex: Exception) extends ProcessingState
+final case class Failed(msg: String, ex: Option[Throwable] = None) extends ProcessingState
 final case class TotalCounts(processed: Int, failed: Int)

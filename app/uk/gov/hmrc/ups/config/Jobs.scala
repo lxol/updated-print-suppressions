@@ -18,6 +18,7 @@ package uk.gov.hmrc.ups.config
 
 import play.api.{Logger, Play}
 import uk.gov.hmrc.play.config.RunMode
+import uk.gov.hmrc.play.http.HeaderCarrier
 import uk.gov.hmrc.play.scheduling.{ScheduledJob, ExclusiveScheduledJob}
 import uk.gov.hmrc.ups.scheduled.PreferencesProcessor
 import uk.gov.hmrc.ups.service._
@@ -69,7 +70,7 @@ object Jobs {
   object UpdatedPrintSuppressionJob extends ExclusiveScheduledJob with DurationFromConfig {
 
     def executeInMutex(implicit ec: ExecutionContext): Future[UpdatedPrintSuppressionJob.Result] = {
-      PreferencesProcessor.run.map { totals =>
+      PreferencesProcessor.run(HeaderCarrier()).map { totals =>
         Result(
           s"UpdatedPrintSuppressions: ${totals.processed} items processed with ${totals.failed} failures"
         )

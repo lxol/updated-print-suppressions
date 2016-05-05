@@ -5,13 +5,11 @@ import org.scalatest.concurrent.Eventually
 import play.api.http.Status._
 import play.api.libs.json.{JsValue, Json}
 import play.api.libs.ws.{WS, WSRequestHolder}
-import play.api.test.FakeApplication
 import uk.gov.hmrc.domain.{Nino, SaUtr}
 import uk.gov.hmrc.mongo.MongoSpecSupport
 import uk.gov.hmrc.play.http.HeaderCarrier
 import uk.gov.hmrc.play.it.{ExternalService, MicroServiceEmbeddedServer, ServiceSpec}
-import uk.gov.hmrc.play.test.WithFakeApplication
-import uk.gov.hmrc.test.it.{AuthorisationProvider, AuthorisationHeader}
+import uk.gov.hmrc.test.it.AuthorisationProvider
 import uk.gov.hmrc.ups.config.Jobs
 import uk.gov.hmrc.ups.model.EntityId
 import uk.gov.hmrc.ups.utils.Generate
@@ -20,78 +18,113 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 class UpdatedPrintSuppressionJobISpec extends EndpointSupport
   with UpdatedPrintSuppressionServer
-  with WithFakeApplication
-  with MongoSpecSupport
   with Eventually
   with BeforeAndAfterEach {
 
-  // TODO: why is the environment defaulting to dev instead of Test here?
-  override lazy val fakeApplication = FakeApplication(
-    additionalConfiguration = Map(
-      s"mongodb.uri" -> s"mongodb://localhost:27017/$databaseName",
-      s"Dev.scheduling.updatedPrintSuppressions.initialDelay" -> "10 days",
-      s"Dev.scheduling.updatedPrintSuppressions.interval" -> "24 hours"
-    )
-  )
   override def beforeEach(): Unit = {
     super.beforeEach()
     await(mongo().drop())
   }
 
   "UpdatedPrintSuppression job" should {
-    s"""
+    """
        |copy valid updated preferences with a utr to the ups storage,
        |mark invalid preferences as permanently-failed,
        |and ignore nino only preferences
-     """.stripMargin in new TestCaseWithUtrOnly {
-      // create preference with a valid utr in entity resolver
+     """.stripMargin in new TestCase {
+
+      createValidRecord
+
+      await {
+        val msg = Jobs.UpdatedPrintSuppressionJob.executeInMutex.futureValue.message
+        msg
+      } shouldBe s"UpdatedPrintSuppressions: 1 items processed with 0 failures"
+
+    }
+
+    """
+      |pull workitem from preferences,
+      |but not entity found for the entityId,
+      |mark invalid preferences as permanently-failed,
+      |and ignore nino only preferences
+    """.stripMargin in new TestCase {
+
+      createValidRecord
+      createOrphanPreference
+      createNinoOnlyRecord
+
+      await {
+        val msg = Jobs.UpdatedPrintSuppressionJob.executeInMutex.futureValue.message
+        msg
+      } shouldBe s"UpdatedPrintSuppressions: 3 items processed with 1 failures and 1 record without a UTR"
+
+
+      // TODO: check the local repo only has 1 record
+    }
+      // create preference without a value in entity resolver
+      // create preference with a valid nino in entity resolver
+
+
+  }
+
+  trait TestCase {
+    val utr = Generate.utr
+    val nino = Generate.nino
+    val testEmail = "test@test.com"
+
+    def createValidRecord() = {
+      implicit val authHeader : (String, String) = createGGAuthorisationHeader(utr)
 
       `/preferences/activate`.put(Json.parse(s"""{"active": true}""")).futureValue.status shouldBe PRECONDITION_FAILED
       post(`/preferences/terms-and-conditions`, Json.parse(s"""{"generic":{"accepted":true}, "email": "$testEmail"}""")).status should be(CREATED)
 
-      val entityIdResponse = get(`/entity-resolver-admin/sa/:utr`(randomUtr))
-      val verificationToken = verificationTokenFor(EntityId(entityIdResponse.body))
+      val entityIdResponse = get(`/entity-resolver-admin/sa/:utr`(utr))
+      val entityId: EntityId = EntityId(entityIdResponse.body)
+      val verificationToken = verificationTokenFor(entityId)
       put(`/portal/preferences/email`, Json.parse( s"""{"token":"$verificationToken"}""")).status should be(NO_CONTENT)
+    }
+    def createOrphanPreference() = {
+      implicit val authHeader : (String, String) = createGGAuthorisationHeader(Generate.utr)
 
-      eventually {
-        val msg = Jobs.UpdatedPrintSuppressionJob.executeInMutex.futureValue.message
-        msg shouldBe "processed: 1, successful: 1"
-      }
+      `/preferences/activate`.put(Json.parse(s"""{"active": true}""")).futureValue.status shouldBe PRECONDITION_FAILED
+      post(`/preferences/terms-and-conditions`, Json.parse(s"""{"generic":{"accepted":true}, "email": "$testEmail"}""")).status should be(CREATED)
+    }
+    def createNinoOnlyRecord() = {
+      implicit val authHeader : (String, String) = createGGAuthorisationHeader(nino)
 
+      `/preferences/activate`.put(Json.parse(s"""{"active": true}""")).futureValue.status shouldBe PRECONDITION_FAILED
+      post(`/preferences/terms-and-conditions`, Json.parse(s"""{"generic":{"accepted":true}, "email": "$testEmail"}""")).status should be(CREATED)
 
-      // create preference without a value in entity resolver
-      // create preference with a valid nino in entity resolver
+      val entityIdResponse = get(`/entity-resolver-admin/paye/:nino`(nino))
+      val entityId: EntityId = EntityId(entityIdResponse.body)
+      val verificationToken = verificationTokenFor(entityId)
+      put(`/portal/preferences/email`, Json.parse( s"""{"token":"$verificationToken"}""")).status should be(NO_CONTENT)
     }
 
-
-  }
-
-  trait TestCaseWithNinoOnly {
-    val randomNino = Generate.nino
-    implicit val authHeader : (String, String) = createGGAuthorisationHeader(randomNino)
-  }
-
-  trait TestCaseWithUtrOnly {
-    val testEmail = "test@test.com"
-    val randomUtr = Generate.utr
-    implicit val authHeader : (String, String) = createGGAuthorisationHeader(randomUtr)
   }
 }
 
 import scala.concurrent.duration._
 
-trait UpdatedPrintSuppressionServer extends ServiceSpec {
+trait UpdatedPrintSuppressionServer extends ServiceSpec with MongoSpecSupport {
 
   protected val server = new UpdatedPrintSuppressionIntegrationServer("UpdatedPrintSuppressionServer")
 
   class UpdatedPrintSuppressionIntegrationServer(override val testName: String) extends MicroServiceEmbeddedServer {
     protected lazy val externalServices: Seq[ExternalService] = externalServiceNames.map(ExternalService.runFromJar(_))
 
-    override protected def additionalConfig = Map(
-      "application.router" -> "testOnlyDoNotUseInAppConf.Routes",
-      "Dev.auditing.consumer.baseUri.port" -> externalServicePorts("datastream"),
-      "Dev.microservice.services.preferences.circuitBreaker.numberOfCallsToTriggerStateChange" -> 5
-    )
+    override protected def additionalConfig = {
+      println(s"databaseName ==> $databaseName")
+      Map(
+        "Dev.auditing.consumer.baseUri.port" -> externalServicePorts("datastream"),
+        s"mongodb.uri" -> s"mongodb://localhost:27017/$databaseName",
+        s"Dev.mongodb.uri" -> s"mongodb://localhost:27017/$databaseName",
+        s"Test.mongodb.uri" -> s"mongodb://localhost:27017/$databaseName",
+        "Dev.scheduling.updatedPrintSuppressions.initialDelay" -> "10 days",
+        "Dev.scheduling.updatedPrintSuppressions.interval" -> "24 hours",
+        "Dev.ups.retryFailedUpdatesAfter" -> "24 hours"
+      )
+    }
 
     override protected def startTimeout: Duration = 300.seconds
   }
@@ -142,6 +175,8 @@ trait EndpointSupport {
   def `/portal/preferences/email` = mkResource(entityResource("/portal/preferences/email"))
 
   def `/entity-resolver-admin/sa/:utr`(utr: SaUtr) = mkResource(entityResource(s"/entity-resolver-admin/sa/$utr"))
+
+  def `/entity-resolver-admin/paye/:nino`(nino: Nino) = mkResource(entityResource(s"/entity-resolver-admin/paye/$nino"))
 
   def `/preferences-admin/:entityId/verification-token`(entityId: EntityId) = WS.url(preferencesResource(s"/preferences-admin/$entityId/verification-token"))
 

@@ -44,7 +44,7 @@ class UpdatedPrintSuppressionsRepositorySpec extends UnitSpec with MongoSpecSupp
 
   override def beforeEach(): Unit = {
     new UpdatedPrintSuppressionsRepository(TODAY, _ => counterRepoStub).collection.drop()
-    new MongoCounterRepository(TODAY.toString("yyyyMMdd")).removeAll()
+    MongoCounterRepository(TODAY.toString("yyyyMMdd")).removeAll()
   }
 
   "UpdatedPrintSuppressionsRepository" should {
@@ -129,23 +129,23 @@ class UpdatedPrintSuppressionsRepositorySpec extends UnitSpec with MongoSpecSupp
   "The counter repository" should {
 
     "initialise to zero" in {
-      val repository = new MongoCounterRepository("test-counter")
+      val repository = MongoCounterRepository("test-counter")
       val counter: Counter = repository.findAll().head
       counter.value shouldBe 0
       counter.name shouldBe "test-counter"
     }
 
     "initialise to zero only if the value doesnt exist already" in {
-      val repositoryT0 = new MongoCounterRepository("test-counter")
+      val repositoryT0 = MongoCounterRepository("test-counter")
       await(repositoryT0.next)
-      val repositoryT1 = new MongoCounterRepository("test-counter")
+      val repositoryT1 = MongoCounterRepository("test-counter")
       repositoryT1.findAll().map {
         _.headOption.map(head => (head.value, head.name))
       }.futureValue shouldBe Some((1, "test-counter"))
     }
 
     "increment and return the next value" in {
-      val repository = new MongoCounterRepository("test-counter")
+      val repository = MongoCounterRepository("test-counter")
       await(repository.next)
       await(repository.next)
 

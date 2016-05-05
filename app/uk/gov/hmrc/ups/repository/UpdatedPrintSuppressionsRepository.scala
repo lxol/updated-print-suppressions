@@ -110,7 +110,7 @@ trait CounterRepository {
   def next(implicit ec: ExecutionContext): Future[Int]
 }
 
-class MongoCounterRepository(counterName: String)(implicit mongo: () => DB, ec: ExecutionContext)
+class MongoCounterRepository private(counterName: String)(implicit mongo: () => DB)
   extends ReactiveRepository[Counter, BSONObjectID]("counters", mongo, Counter.formats, ReactiveMongoFormats.objectIdFormats) with CounterRepository {
 
   override def indexes: Seq[Index] =
@@ -124,13 +124,20 @@ class MongoCounterRepository(counterName: String)(implicit mongo: () => DB, ec: 
     ).map(_.result[Counter].getOrElse(throw new RuntimeException("No initialised counter found")).value)
   }
 
-  def initialise(implicit ec: ExecutionContext): Future[Boolean] = {
+  private[MongoCounterRepository] def initialise(implicit ec: ExecutionContext): Future[Boolean] = {
     collection.update(
       BSONDocument("name" -> counterName),
       BSONDocument("$setOnInsert" -> Counter.formats.writes(Counter(BSONObjectID.generate, counterName, 0))),
       upsert = true
     ).map(_.ok)
   }
-
-  Await.result(initialise, 5 seconds)
 }
+object MongoCounterRepository {
+  def apply(counterName: String)(implicit ec: ExecutionContext, mongo: () => DB): MongoCounterRepository = {
+    val result = new MongoCounterRepository(counterName)
+    Await.result(result.initialise, 5 seconds)
+    result
+  }
+
+}
+

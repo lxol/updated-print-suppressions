@@ -17,7 +17,9 @@
 package uk.gov.hmrc.ups.connectors
 
 import play.api.http.Status._
+import uk.gov.hmrc.play.config.ServicesConfig
 import uk.gov.hmrc.play.http.{HeaderCarrier, HttpGet, HttpReads, HttpResponse}
+import uk.gov.hmrc.ups.config.WSHttp
 import uk.gov.hmrc.ups.model.{Entity, EntityId}
 
 trait EntityResolverConnector {
@@ -31,11 +33,17 @@ trait EntityResolverConnector {
   }
 
   def getTaxIdentifiers(entityId: EntityId)(implicit hc: HeaderCarrier) =
-    http.GET[Int Either Option[Entity]](s"$baseUrl/entity-resolver/$entityId")
+    http.GET[Int Either Option[Entity]](s"$serviceUrl/entity-resolver/$entityId")
 
 
   def http: HttpGet
 
-  def baseUrl: String
+  def serviceUrl: String
 
+}
+
+object EntityResolverConnector extends EntityResolverConnector with ServicesConfig {
+  lazy val http: HttpGet = WSHttp
+
+  def serviceUrl: String = baseUrl("entity-resolver")
 }

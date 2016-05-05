@@ -21,11 +21,11 @@ class TestSetup(override val databaseName: String = "updated-print-suppressions"
   val yesterdayAsString = yesterday.toString("yyyy-MM-dd")
 
   // Reset the counters
-  await(new MongoCounterRepository("-").removeAll())
+  await(MongoCounterRepository("-").removeAll())
 
-  val repoToday = new UpdatedPrintSuppressionsRepository(today, counterName => new MongoCounterRepository(counterName))
+  val repoToday = new UpdatedPrintSuppressionsRepository(today, counterName => MongoCounterRepository(counterName))
   await(repoToday.removeAll())
 
-  val repoYesterday = new UpdatedPrintSuppressionsRepository(yesterday, counterName => new MongoCounterRepository(counterName))
+  val repoYesterday = new UpdatedPrintSuppressionsRepository(yesterday, counterName => MongoCounterRepository(counterName))
   await(repoYesterday.removeAll())
 }

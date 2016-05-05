@@ -17,20 +17,25 @@
 package uk.gov.hmrc.ups.connectors
 
 import org.joda.time.{DateTime, Duration}
+import play.api.Play
 import play.api.http.Status._
 import play.api.libs.json.{JsValue, Json}
+import uk.gov.hmrc.play.config.ServicesConfig
 import uk.gov.hmrc.play.http._
 import uk.gov.hmrc.time.DateTimeUtils
+import uk.gov.hmrc.ups.config.WSHttp
 import uk.gov.hmrc.ups.model.{Filters, PulledItem, WorkItemRequest}
 
+import scala.concurrent.Future
 
 trait PreferencesConnector {
+  type PulledWorkItem = Option[Int Either PulledItem]
 
-  implicit val optionalPullItemReads = new HttpReads[Int Either Option[PulledItem]] {
-    override def read(method: String, url: String, response: HttpResponse): Int Either Option[PulledItem] = response.status match {
-      case NO_CONTENT => Right(None)
-      case OK => Right(Some(response.json.as[PulledItem]))
-      case _ => Left(response.status)
+  implicit val optionalPullItemReads = new HttpReads[PulledWorkItem] {
+    override def read(method: String, url: String, response: HttpResponse): PulledWorkItem = response.status match {
+      case NO_CONTENT => None
+      case OK => Some(Right(response.json.as[PulledItem]))
+      case _ => Some(Left(response.status))
     }
   }
 
@@ -38,13 +43,15 @@ trait PreferencesConnector {
     def read(method: String, url: String, response: HttpResponse): Int = response.status
   }
 
-  def pullWorkItem()(implicit hc: HeaderCarrier) = {
-    http.POST[WorkItemRequest, Int Either Option[PulledItem]](s"$serviceUrl/updated-print-suppression/pull-work-item", workItemRequest)
+  def pullWorkItem(implicit hc: HeaderCarrier): Future[PulledWorkItem] = {
+    println (s"==> $serviceUrl/preferences/updated-print-suppression/pull-work-item")
+    http.POST[WorkItemRequest, PulledWorkItem](s"$serviceUrl/preferences/updated-print-suppression/pull-work-item", workItemRequest)
   }
 
-  def changeStatus(callbackUrl: String, status: String)(implicit hc: HeaderCarrier) =
-    http.POST[JsValue, Int](callbackUrl, Json.obj("status" -> status))
-
+  def changeStatus(callbackUrl: String, status: String)(implicit hc: HeaderCarrier) = {
+    println(s"$serviceUrl$callbackUrl")
+    http.POST[JsValue, Int](s"$serviceUrl$callbackUrl", Json.obj("status" -> status))
+  }
   def retryFailedUpdatesAfter: Duration
 
   def dateTimeFor(duration: Duration): DateTime = DateTimeUtils.now.minus(duration)
@@ -54,5 +61,20 @@ trait PreferencesConnector {
   def http: HttpPost
 
   def serviceUrl: String
+
+}
+object PreferencesConnector extends PreferencesConnector with ServicesConfig {
+
+  def retryFailedUpdatesAfter: Duration =
+    Duration.millis(
+      Play.current.configuration.
+        getMilliseconds(s"$env.ups.retryFailedUpdatesAfter").
+        getOrElse(throw new IllegalStateException(s"$env.ups.retryFailedUpdatesAfter config value not set"))
+    )
+
+  lazy val serviceUrl: String = baseUrl("preferences")
+
+  lazy val http  = WSHttp
+
 
 }
