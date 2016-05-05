@@ -18,7 +18,7 @@ package uk.gov.hmrc.ups.scheduled
 
 import play.api.Logger
 import play.api.http.Status._
-import play.api.libs.iteratee.Enumerator
+import play.api.libs.iteratee.{ Enumerator, Iteratee }
 import uk.gov.hmrc.domain.SaUtr
 import uk.gov.hmrc.play.http.HeaderCarrier
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
@@ -27,6 +27,8 @@ import uk.gov.hmrc.ups.model.PrintPreference
 import uk.gov.hmrc.ups.repository.UpdatedPrintSuppressionsRepository
 
 import scala.concurrent.Future
+
+import scala.concurrent.ExecutionContext
 
 trait PreferencesProcessor {
 
@@ -38,10 +40,25 @@ trait PreferencesProcessor {
 
   def repo: UpdatedPrintSuppressionsRepository
 
-  def run: Future[String] = {
-    implicit val hc: HeaderCarrier = HeaderCarrier()
-    val pullWorkItems = Enumerator.generateM(processUpdates)
-  }
+  // TODO: pass in header carrier or ec?
+  def run(implicit ec: ExecutionContext): Future[TotalCounts] =
+    Enumerator.generateM(pull(HeaderCarrier())).
+      run(
+        Iteratee.foldM(TotalCounts(0, 0)) { (totals, result) =>
+          Future.successful(
+            result match {
+              case Succeeded(_) =>
+                totals.copy(processed = totals.processed + 1)
+                
+              case Failed(_,_) =>
+                totals.copy(failed = totals.failed + 1)
+            }
+          )
+        }
+      )
+
+  def pull(implicit hc: HeaderCarrier): Future[Option[ProcessingState]] = ???
+    
 
   def processUpdates(implicit hc: HeaderCarrier): Future[Boolean] = {
     preferencesConnector.pullWorkItem() flatMap {
@@ -115,3 +132,8 @@ object PreferencesProcessor extends PreferencesProcessor {
 
   def entityResolverConnector: EntityResolverConnector = ???
 }
+
+sealed trait ProcessingState extends Product with Serializable
+final case class Succeeded(msg: String) extends ProcessingState
+final case class Failed(msg: String, ex: Exception) extends ProcessingState
+final case class TotalCounts(processed: Int, failed: Int)

@@ -43,7 +43,7 @@ class PreferencesProcessorSpec extends UnitSpec with ScalaFutures with MockitoSu
       when(mockRepo.insert(argEq(printPreference))(any())).thenReturn(Future.successful(true))
       when(mockPreferencesConnector.changeStatus(pulledItem.callbackUrl, succeeded)).thenReturn(Future.successful(OK))
 
-      preferencesProcessor.processUpdates().futureValue should be(true)
+      preferencesProcessor.processUpdates.futureValue should be(true)
 
       verify(mockPreferencesConnector).pullWorkItem()(any())
       verify(mockEntityResolverConnector).getTaxIdentifiers(pulledItem.entityId)
@@ -54,7 +54,7 @@ class PreferencesProcessorSpec extends UnitSpec with ScalaFutures with MockitoSu
     "return true if no more pulled item from preference" in new TestCase {
       when(mockPreferencesConnector.pullWorkItem()(any())).thenReturn(Future.successful(Right(None)))
 
-      preferencesProcessor.processUpdates().futureValue should be(true)
+      preferencesProcessor.processUpdates.futureValue should be(true)
 
       verify(mockPreferencesConnector).pullWorkItem()(any())
     }
@@ -67,7 +67,7 @@ class PreferencesProcessorSpec extends UnitSpec with ScalaFutures with MockitoSu
       when(mockRepo.insert(argEq(optedOut))(any())).thenReturn(Future.successful(true))
       when(mockPreferencesConnector.changeStatus(pulledItem.callbackUrl, succeeded)).thenReturn(Future.successful(OK))
 
-      preferencesProcessor.processUpdates().futureValue should be(true)
+      preferencesProcessor.processUpdates.futureValue should be(true)
 
       verify(mockPreferencesConnector).pullWorkItem()(any())
       verify(mockEntityResolverConnector).getTaxIdentifiers(pulledItem.entityId)
@@ -81,7 +81,7 @@ class PreferencesProcessorSpec extends UnitSpec with ScalaFutures with MockitoSu
       when(mockEntityResolverConnector.getTaxIdentifiers(pulledItem.entityId)).thenReturn(Future.successful(Right(None)))
       when(mockPreferencesConnector.changeStatus(pulledItem.callbackUrl, permanentlyFailed)).thenReturn(Future.successful(OK))
 
-      preferencesProcessor.processUpdates().futureValue should be(true)
+      preferencesProcessor.processUpdates.futureValue should be(true)
 
       verify(mockPreferencesConnector).pullWorkItem()(any())
       verify(mockEntityResolverConnector).getTaxIdentifiers(pulledItem.entityId)
@@ -95,7 +95,7 @@ class PreferencesProcessorSpec extends UnitSpec with ScalaFutures with MockitoSu
       when(mockEntityResolverConnector.getTaxIdentifiers(pulledItem.entityId)).thenReturn(Future.successful(Left(BAD_GATEWAY)))
       when(mockPreferencesConnector.changeStatus(pulledItem.callbackUrl, failed)).thenReturn(Future.successful(OK))
 
-      preferencesProcessor.processUpdates().futureValue should be(true)
+      preferencesProcessor.processUpdates.futureValue should be(true)
 
       verify(mockPreferencesConnector).pullWorkItem()(any())
       verify(mockEntityResolverConnector).getTaxIdentifiers(pulledItem.entityId)
