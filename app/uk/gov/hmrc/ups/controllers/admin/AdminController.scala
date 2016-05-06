@@ -38,14 +38,15 @@ class AdminController extends BaseController {
   def insert(date: String) = Action.async(parse.json) {
     implicit request =>
       withJsonBody[PrintPreference] { body =>
-          new UpdatedPrintSuppressionsRepository(LocalDate.parse(date, dtf), name => MongoCounterRepository(name)).insert(body).map {
-          case true => Ok("Record inserted")
-          case false => InternalServerError("Failed to insert the record")
-        }
+        new UpdatedPrintSuppressionsRepository(
+          LocalDate.parse(date, dtf),
+            name => MongoCounterRepository(name)
+          ).
+          insert(body).
+          map { _ => Ok("Record inserted") }.
+          recover { case _ => InternalServerError("Failed to insert the record") }
       }
   }
 }
 
-object AdminController extends AdminController {
-
-}
+object AdminController extends AdminController

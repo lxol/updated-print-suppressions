@@ -46,64 +46,80 @@ class PreferencesProcessorSpec extends UnitSpec with ScalaFutures with MockitoSu
   }
 
   "Process outstanding updates" should {
-    "return true when an updated preference is resolved and stored" in new TestCase {
+    "succeed when an updated preference is resolved and stored" in new TestCase {
       when(mockEntityResolverConnector.getTaxIdentifiers(pulledItem.entityId)).
         thenReturn(Future.successful(Right(Some(entity))))
       when(mockRepo.insert(argEq(printPreference))(any())).
-        thenReturn(Future.successful(true))
+        thenReturn(Future.successful(()))
       when(mockPreferencesConnector.changeStatus(pulledItem.callbackUrl, succeeded)).
         thenReturn(Future.successful(OK))
 
-      preferencesProcessor.processUpdates(pulledItem).futureValue should be(true)
+      preferencesProcessor.processUpdates(pulledItem).futureValue shouldBe Succeeded(
+        s"copied data from preferences with utr = ${randomUtr.value}"
+      )
 
       verify(mockEntityResolverConnector).getTaxIdentifiers(pulledItem.entityId)
       verify(mockRepo).insert(argEq(printPreference))(any())
       verify(mockPreferencesConnector).changeStatus(pulledItem.callbackUrl, succeeded)
     }
 
-    "return true the user opted out digital" in new TestCase {
+    "succeed when the user opted out digital" in new TestCase {
       val optedOut = printPreference.copy(formIds = List.empty)
 
-      when(mockEntityResolverConnector.getTaxIdentifiers(pulledItem.entityId)).thenReturn(Future.successful(Right(Some(entity))))
-      when(mockRepo.insert(argEq(optedOut))(any())).thenReturn(Future.successful(true))
+      when(mockEntityResolverConnector.getTaxIdentifiers(pulledItem.entityId)).
+        thenReturn(Future.successful(Right(Some(entity))))
+      when(mockRepo.insert(argEq(optedOut))(any())).
+        thenReturn(Future.successful(()))
       when(mockPreferencesConnector.changeStatus(pulledItem.callbackUrl, succeeded)).thenReturn(Future.successful(OK))
 
       preferencesProcessor.processUpdates(pulledItem.copy(paperless = false)).
-        futureValue should be(true)
+        futureValue shouldBe Succeeded(
+          s"copied data from preferences with utr = ${randomUtr.value}"
+        )
 
       verify(mockEntityResolverConnector).getTaxIdentifiers(pulledItem.entityId)
       verify(mockRepo).insert(argEq(optedOut))(any())
       verify(mockPreferencesConnector).changeStatus(pulledItem.callbackUrl, succeeded)
     }
 
-    "return true if no entry found for the given utr" in new TestCase {
-      when(mockEntityResolverConnector.getTaxIdentifiers(pulledItem.entityId)).thenReturn(Future.successful(Right(None)))
-      when(mockPreferencesConnector.changeStatus(pulledItem.callbackUrl, permanentlyFailed)).thenReturn(Future.successful(OK))
+    "mark preferences status as permanently failed when no entity found for the given entityId" in new TestCase {
+      when(mockEntityResolverConnector.getTaxIdentifiers(pulledItem.entityId)).
+        thenReturn(Future.successful(Right(None)))
+      when(mockPreferencesConnector.changeStatus(pulledItem.callbackUrl, permanentlyFailed)).
+        thenReturn(Future.successful(OK))
 
       preferencesProcessor.processUpdates(pulledItem.copy(paperless = false)).
-        futureValue should be(true)
+        futureValue shouldBe Failed(
+          s"marked preference with entity id [${pulledItem.entityId} ] as permanently-failed"
+        )
 
       verify(mockEntityResolverConnector).getTaxIdentifiers(pulledItem.entityId)
       verifyZeroInteractions(mockRepo)
       verify(mockPreferencesConnector).changeStatus(pulledItem.callbackUrl, permanentlyFailed)
     }
 
-    "return true if there is any error comunicated with entity resolver" in new TestCase {
-      when(mockEntityResolverConnector.getTaxIdentifiers(pulledItem.entityId)).thenReturn(Future.successful(Left(BAD_GATEWAY)))
+    "mark preferences status as failed if there is any error communicated with entity resolver" in new TestCase {
+      when(mockEntityResolverConnector.getTaxIdentifiers(pulledItem.entityId)).
+        thenReturn(Future.successful(Left(BAD_GATEWAY)))
       when(mockPreferencesConnector.changeStatus(pulledItem.callbackUrl, failed)).thenReturn(Future.successful(OK))
 
-      preferencesProcessor.processUpdates(pulledItem.copy(paperless = false)).futureValue should be(true)
+      preferencesProcessor.processUpdates(pulledItem.copy(paperless = false)).
+        futureValue shouldBe Failed(
+          s"marked preference with entity id [${pulledItem.entityId} ] as failed"
+        )
 
       verify(mockEntityResolverConnector).getTaxIdentifiers(pulledItem.entityId)
       verifyZeroInteractions(mockRepo)
       verify(mockPreferencesConnector).changeStatus(pulledItem.callbackUrl, failed)
     }
 
-    "return true if nino only user is found in entity-resolver" in new TestCase {
+    "mark preference status as succeeded when nino-only user is found in entity-resolver" in new TestCase {
       when(mockEntityResolverConnector.getTaxIdentifiers(pulledItem.entityId)).thenReturn(Future.successful(Right(Some(ninoOnlyEntity))))
       when(mockPreferencesConnector.changeStatus(pulledItem.callbackUrl, succeeded)).thenReturn(Future.successful(OK))
 
-      preferencesProcessor.processUpdates(pulledItem).futureValue should be(true)
+      preferencesProcessor.processUpdates(pulledItem).futureValue shouldBe Succeeded(
+        s"copied data from preferences with utr = []"
+      )
 
       verify(mockEntityResolverConnector).getTaxIdentifiers(pulledItem.entityId)
       verifyZeroInteractions(mockRepo)
@@ -113,53 +129,52 @@ class PreferencesProcessorSpec extends UnitSpec with ScalaFutures with MockitoSu
 
   "insertAndUpdate" should {
 
-    "return true when the record is inserted into UPS repo and the status of the preference has been updated externally" in new TestCase {
-      when(mockRepo.insert(argEq(printPreference))(any())).thenReturn(Future.successful(true))
+    // POSSIBLE DUPLICATE -> only conflict status code differs really
+    "succeed when the record is inserted into UPS repo and the status of the preference has been updated externally" in new TestCase {
+      when(mockRepo.insert(argEq(printPreference))(any())).thenReturn(Future.successful(()))
       when(mockPreferencesConnector.changeStatus(argEq(callbackUrl), argEq(succeeded))(any())).
         thenReturn(Future.successful(CONFLICT))
 
-      preferencesProcessor.insertAndUpdate(randomUtr, forms, callbackUrl).futureValue shouldBe true
+      preferencesProcessor.insertAndUpdate(randomUtr, forms, callbackUrl).
+        futureValue shouldBe Succeeded(s"copied data from preferences with utr = ${randomUtr.value}")
 
       verify(mockRepo).insert(argEq(printPreference))(any())
       verify(mockPreferencesConnector).changeStatus(argEq(callbackUrl), argEq(succeeded))(any())
     }
 
-    "return false when the record is inserted into UPS repo and the status of the updated preference is not not ok" in new TestCase {
-      when(mockRepo.insert(argEq(printPreference))(any())).thenReturn(Future.successful(true))
-      when(mockPreferencesConnector.changeStatus(argEq(callbackUrl), argEq(succeeded))(any())).thenReturn(Future.successful(BAD_REQUEST))
+    // NO TEST ABOVE
+    "be considered failed when the record is inserted into UPS repo and the status of the updated preference is not ok" in new TestCase {
+      when(mockRepo.insert(argEq(printPreference))(any())).
+        thenReturn(Future.successful(()))
+      when(mockPreferencesConnector.changeStatus(argEq(callbackUrl), argEq(succeeded))(any())).
+        thenReturn(Future.successful(BAD_REQUEST))
       when(mockRepo.removeByUtr(printPreference.id)).thenReturn(Future.successful(true))
 
-      preferencesProcessor.insertAndUpdate(randomUtr, forms, callbackUrl).futureValue shouldBe false
+      preferencesProcessor.insertAndUpdate(randomUtr, forms, callbackUrl).
+        futureValue shouldBe Failed(
+          s"failed to update status in preferences for utr = ${randomUtr.value}"
+        )
 
       verify(mockRepo).insert(argEq(printPreference))(any())
       verify(mockPreferencesConnector).changeStatus(argEq(callbackUrl), argEq(succeeded))(any())
       verify(mockRepo).removeByUtr(printPreference.id)
     }
 
-    "return false when the record cannot be inserted into the UPS repo" in new TestCase {
-      when(mockRepo.insert(argEq(printPreference))(any())).thenReturn(Future.successful(false))
+
+    "be considered failed when the record cannot be inserted into the UPS repo" in new TestCase {
+      when(mockRepo.insert(argEq(printPreference))(any())).thenReturn(Future.failed(new RuntimeException()))
       when(mockPreferencesConnector.changeStatus(argEq(callbackUrl), argEq(failed))(any())).thenReturn(Future.successful(OK))
 
-      preferencesProcessor.insertAndUpdate(randomUtr, forms, callbackUrl).futureValue shouldBe false
+      preferencesProcessor.insertAndUpdate(randomUtr, forms, callbackUrl).futureValue match {
+        case Failed(msg, _) =>
+          msg shouldBe s"failed to include ${randomUtr.value} in updated print suppressions"
+        case _ => fail("should never happen")
+      }
 
       verify(mockRepo).insert(argEq(printPreference))(any())
       verify(mockPreferencesConnector).changeStatus(argEq(callbackUrl), argEq(failed))(any())
       verifyNoMoreInteractions(mockRepo)
     }
-
-    "return false when something exceptional occurs while inserting into the UPS repo" in new TestCase {
-      when(mockRepo.insert(argEq(printPreference))(any())).
-        thenReturn(Future.failed(new RuntimeException("fail")))
-      when(mockPreferencesConnector.changeStatus(argEq(callbackUrl), argEq(failed))(any())).thenReturn(Future.successful(OK))
-
-      preferencesProcessor.insertAndUpdate(randomUtr, forms, callbackUrl).futureValue shouldBe false
-
-      verify(mockRepo).insert(argEq(printPreference))(any())
-      verify(mockPreferencesConnector).changeStatus(argEq(callbackUrl), argEq(failed))(any())
-      verifyNoMoreInteractions(mockRepo)
-    }
-
-
   }
 
 

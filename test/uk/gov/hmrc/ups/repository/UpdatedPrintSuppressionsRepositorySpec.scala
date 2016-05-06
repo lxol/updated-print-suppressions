@@ -96,7 +96,7 @@ class UpdatedPrintSuppressionsRepositorySpec extends UnitSpec with MongoSpecSupp
 
       val repository = new UpdatedPrintSuppressionsRepository(TODAY, _ => counterRepoStub)
 
-      await(repository.insert(pp)) shouldBe true
+      await(repository.insert(pp))
 
       await(repository.removeByUtr(pp.id)) shouldBe true
       await(repository.findAll()) should be (empty)

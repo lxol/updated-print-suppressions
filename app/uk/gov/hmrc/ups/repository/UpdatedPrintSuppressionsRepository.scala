@@ -72,7 +72,7 @@ class UpdatedPrintSuppressionsRepository(date: LocalDate, repoCreator: String =>
     e.map(_.map(ups => ups.printPreference))
   }
 
-  def insert(printPreference: PrintPreference)(implicit ec: ExecutionContext): Future[Boolean] = {
+  def insert(printPreference: PrintPreference)(implicit ec: ExecutionContext): Future[Unit] = {
     val selector = BSONDocument("printPreference.id" -> printPreference.id, "printPreference.idType" -> printPreference.idType)
 
     val maxAttempts = 10
@@ -93,7 +93,11 @@ class UpdatedPrintSuppressionsRepository(date: LocalDate, repoCreator: String =>
             case ex => Future.failed(ex)
           })
       }
-      doInsert(1).map(_.ok)
+
+    doInsert(1).filter(_.ok).transform(
+      _ => (),
+      new RuntimeException(s"could not insert preference $printPreference", _)
+    )
   }
 }
 
