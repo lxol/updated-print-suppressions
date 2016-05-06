@@ -71,45 +71,51 @@ trait PreferencesProcessor {
 
   def processUpdates(item: PulledItem)(implicit hc: HeaderCarrier): Future[Boolean] =
     entityResolverConnector.getTaxIdentifiers(item.entityId).flatMap {
-      case Right(Some(entity)) => {
-        entity.taxIdentifiers.collectFirst[SaUtr] { case utr: SaUtr => utr} match {
-          case Some(utr) => insertAndUpdate(
-            utr, if (item.paperless) formIds else List.empty, item.callbackUrl
-          )
-          case None => ???
-        }
-      }
+      case Right(Some(entity)) =>
+        entity.taxIdentifiers.
+          collectFirst[SaUtr] { case utr: SaUtr => utr}.
+          fold(updatePreference(item.callbackUrl, None)) { utr =>
+            insertAndUpdate(
+              utr, if (item.paperless) formIds else List.empty, item.callbackUrl
+            )
+          }
+
       case x =>
-        val status = if (x.isRight) "permanently-failed" else "failed"
         Logger.warn(s"failed to process ${item.entityId} from entity resolver")
+        val status = if (x.isRight) "permanently-failed" else "failed"
         preferencesConnector.changeStatus(item.callbackUrl, status).map {
           case OK => true
           case x =>
             Logger.info(
-              s"""
-                 |could not change status to $status for entity id = ${item.entityId}
-                 |response status code was $x"
-                       """.stripMargin
+              s"""could not change status to $status for entity id = ${item.entityId}
+                 |response status code was $x"""".stripMargin
             )
             true
         }
     }
 
-  def insertAndUpdate(utr: SaUtr, formIds: List[String], callbackUrl: String)
+
+  def insertAndUpdate(utr: SaUtr, forms: List[String], callbackUrl: String)
                      (implicit hc: HeaderCarrier): Future[Boolean] =
-    repo.insert(PrintPreference(utr.value, "sautr", formIds)).
+    repo.insert(PrintPreference(utr.value, "sautr", forms)).
       flatMap { result =>
-        if (result) preferencesConnector.changeStatus(callbackUrl, "succeeded")
+        if (result) updatePreference(callbackUrl, Some(utr))
         else Future.failed(new RuntimeException(s"Failed to insert utr $utr.value"))
-      }.
-      flatMap {
-        case status @ (OK | CONFLICT) => Future.successful(true)
-        case _ => repo.removeByUtr(utr.value).map(_ => false)
       }.
       recoverWith { case ex =>
         Logger.warn(s"failed to include $utr in updated print suppressions", ex)
         // TODO: change this when boolean is refactored
         preferencesConnector.changeStatus(callbackUrl, "failed").map { _ => false }
+      }
+
+  def updatePreference(callbackUrl: String, utr: Option[SaUtr])
+                      (implicit hc: HeaderCarrier): Future[Boolean] =
+    preferencesConnector.changeStatus(callbackUrl, "succeeded").
+      flatMap {
+        case status @ (OK | CONFLICT) => Future.successful(true)
+        case _ => utr.map { u =>
+          repo.removeByUtr(u.value).map(_ => false)
+        }.getOrElse(Future.successful(false))
       }
 }
 

@@ -52,6 +52,7 @@ trait PreferencesConnector {
     println(s"$serviceUrl$callbackUrl")
     http.POST[JsValue, Int](s"$serviceUrl$callbackUrl", Json.obj("status" -> status))
   }
+
   def retryFailedUpdatesAfter: Duration
 
   def dateTimeFor(duration: Duration): DateTime = DateTimeUtils.now.minus(duration)
