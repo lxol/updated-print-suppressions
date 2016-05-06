@@ -98,6 +98,17 @@ class PreferencesProcessorSpec extends UnitSpec with ScalaFutures with MockitoSu
       verifyZeroInteractions(mockRepo)
       verify(mockPreferencesConnector).changeStatus(pulledItem.callbackUrl, failed)
     }
+
+    "return true if nino only user is found in entity-resolver" in new TestCase {
+      when(mockEntityResolverConnector.getTaxIdentifiers(pulledItem.entityId)).thenReturn(Future.successful(Right(Some(ninoOnlyEntity))))
+      when(mockPreferencesConnector.changeStatus(pulledItem.callbackUrl, succeeded)).thenReturn(Future.successful(OK))
+
+      preferencesProcessor.processUpdates(pulledItem).futureValue should be(true)
+
+      verify(mockEntityResolverConnector).getTaxIdentifiers(pulledItem.entityId)
+      verifyZeroInteractions(mockRepo)
+      verify(mockPreferencesConnector).changeStatus(pulledItem.callbackUrl, succeeded)
+    }
   }
 
   "insertAndUpdate" should {
@@ -181,6 +192,7 @@ class PreferencesProcessorSpec extends UnitSpec with ScalaFutures with MockitoSu
     val printPreference = PrintPreference(randomUtr.value, "sautr", forms)
 
     val entity = Entity(randomEntityId, randomUtr)
+    val ninoOnlyEntity = Entity(randomEntityId, randomNino)
   }
 
 

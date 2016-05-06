@@ -32,32 +32,33 @@ trait PreferencesConnector {
   type PulledWorkItem = Option[Int Either PulledItem]
 
   implicit val optionalPullItemReads = new HttpReads[PulledWorkItem] {
-    override def read(method: String, url: String, response: HttpResponse): PulledWorkItem = response.status match {
-      case NO_CONTENT => None
-      case OK => Some(Right(response.json.as[PulledItem]))
-      case _ => Some(Left(response.status))
-    }
+    override def read(method: String, url: String, response: HttpResponse) =
+      response.status match {
+        case NO_CONTENT => None
+        case OK => Some(Right(response.json.as[PulledItem]))
+        case _ => Some(Left(response.status))
+      }
   }
 
   implicit val statusReads = new HttpReads[Int] {
     def read(method: String, url: String, response: HttpResponse): Int = response.status
   }
 
-  def pullWorkItem(implicit hc: HeaderCarrier): Future[PulledWorkItem] = {
-    println (s"==> $serviceUrl/preferences/updated-print-suppression/pull-work-item")
-    http.POST[WorkItemRequest, PulledWorkItem](s"$serviceUrl/preferences/updated-print-suppression/pull-work-item", workItemRequest)
-  }
+  def pullWorkItem(implicit hc: HeaderCarrier): Future[PulledWorkItem] =
+    http.POST[WorkItemRequest, PulledWorkItem](
+      s"$serviceUrl/preferences/updated-print-suppression/pull-work-item",
+      workItemRequest
+    )
 
-  def changeStatus(callbackUrl: String, status: String)(implicit hc: HeaderCarrier) = {
-    println(s"$serviceUrl$callbackUrl")
+  def changeStatus(callbackUrl: String, status: String)(implicit hc: HeaderCarrier) =
     http.POST[JsValue, Int](s"$serviceUrl$callbackUrl", Json.obj("status" -> status))
-  }
 
   def retryFailedUpdatesAfter: Duration
 
   def dateTimeFor(duration: Duration): DateTime = DateTimeUtils.now.minus(duration)
 
-  def workItemRequest: WorkItemRequest =  WorkItemRequest(Filters(dateTimeFor(retryFailedUpdatesAfter), DateTimeUtils.now))
+  def workItemRequest: WorkItemRequest =
+    WorkItemRequest(Filters(dateTimeFor(retryFailedUpdatesAfter), DateTimeUtils.now))
 
   def http: HttpPost
 

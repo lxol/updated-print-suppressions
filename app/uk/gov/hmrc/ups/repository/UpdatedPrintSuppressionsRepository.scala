@@ -38,7 +38,7 @@ object UpdatedPrintSuppressions {
   implicit val idf = ReactiveMongoFormats.objectIdFormats
   implicit val pp = PrintPreference.formats
 
-  val formats = Json.format[UpdatedPrintSuppressions]
+  implicit val formats = Json.format[UpdatedPrintSuppressions]
   val datePattern = "yyyyMMdd"
   def toString(date: LocalDate) = date.toString(datePattern)
   def repoNameTemplate(date: LocalDate) = s"updated_print_suppressions_${toString(date)}"
