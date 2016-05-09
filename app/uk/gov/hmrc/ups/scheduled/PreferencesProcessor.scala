@@ -30,9 +30,9 @@ import uk.gov.hmrc.ups.repository.{MongoCounterRepository, UpdatedPrintSuppressi
 
 import scala.concurrent.Future
 
-
-
 trait PreferencesProcessor {
+
+  type PulledWorkItemResult = Either[Int, PulledItem]
 
   def formIds: List[String]
 
@@ -56,22 +56,13 @@ trait PreferencesProcessor {
         }
       )
 
-  type PulledWorkItemResult = Either[Int, PulledItem]
-
   def processWorkItem(implicit hc: HeaderCarrier): PulledWorkItemResult => Future[ProcessingState] = {
-    // TODO: for now continue when we get a non-200 level error from prefs, but is this what we really want to do?
     case Left(error) => Future.successful(
       Failed(s"Pull from preferences failed with status code = $error")
     )
 
     case Right(item) => processUpdates(item)
   }
-
-  /*
-    .map { _ =>
-      Succeeded(s"copied data from preferences with ${item.entityId}")
-    }
-   */
 
   def processUpdates(item: PulledItem)(implicit hc: HeaderCarrier): Future[ProcessingState] =
     entityResolverConnector.getTaxIdentifiers(item.entityId).flatMap {
@@ -132,18 +123,6 @@ trait PreferencesProcessor {
           )
       }
 }
-/*
-  repo.insert(PrintPreference(utr.value, "sautr", forms)).
-    flatMap { result =>
-      if (result) updatePreference(callbackUrl, Some(utr))
-      else Future.failed(new RuntimeException(s"Failed to insert utr $utr.value"))
-    }.
-    recoverWith { case ex =>
-      Logger.warn(s"failed to include $utr in updated print suppressions", ex)
-      // TODO: change this when boolean is refactored
-      preferencesConnector.changeStatus(callbackUrl, "failed").map { _ => false }
-    }
-*/
 
 object PreferencesProcessor extends PreferencesProcessor {
   private implicit val connection = {

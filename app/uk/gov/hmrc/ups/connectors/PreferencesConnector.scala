@@ -67,7 +67,7 @@ trait PreferencesConnector {
 }
 object PreferencesConnector extends PreferencesConnector with ServicesConfig {
 
-  def retryFailedUpdatesAfter: Duration =
+  lazy val retryFailedUpdatesAfter: Duration =
     Duration.millis(
       Play.current.configuration.
         getMilliseconds(s"$env.ups.retryFailedUpdatesAfter").
@@ -76,7 +76,7 @@ object PreferencesConnector extends PreferencesConnector with ServicesConfig {
 
   lazy val serviceUrl: String = baseUrl("preferences")
 
-  lazy val http  = WSHttp
+  lazy val http = WSHttp
 
 
 }

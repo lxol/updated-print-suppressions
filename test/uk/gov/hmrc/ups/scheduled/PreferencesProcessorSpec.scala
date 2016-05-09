@@ -129,20 +129,6 @@ class PreferencesProcessorSpec extends UnitSpec with ScalaFutures with MockitoSu
 
   "insertAndUpdate" should {
 
-    // POSSIBLE DUPLICATE -> only conflict status code differs really
-    "succeed when the record is inserted into UPS repo and the status of the preference has been updated externally" in new TestCase {
-      when(mockRepo.insert(argEq(printPreference))(any())).thenReturn(Future.successful(()))
-      when(mockPreferencesConnector.changeStatus(argEq(callbackUrl), argEq(succeeded))(any())).
-        thenReturn(Future.successful(CONFLICT))
-
-      preferencesProcessor.insertAndUpdate(randomUtr, forms, callbackUrl).
-        futureValue shouldBe Succeeded(s"copied data from preferences with utr = ${randomUtr.value}")
-
-      verify(mockRepo).insert(argEq(printPreference))(any())
-      verify(mockPreferencesConnector).changeStatus(argEq(callbackUrl), argEq(succeeded))(any())
-    }
-
-    // NO TEST ABOVE
     "be considered failed when the record is inserted into UPS repo and the status of the updated preference is not ok" in new TestCase {
       when(mockRepo.insert(argEq(printPreference))(any())).
         thenReturn(Future.successful(()))
