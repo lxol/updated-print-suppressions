@@ -19,10 +19,10 @@ import uk.gov.hmrc.domain.{Nino, SaUtr}
 import uk.gov.hmrc.mongo.{MongoConnector, MongoSpecSupport}
 import uk.gov.hmrc.play.http.HeaderCarrier
 import uk.gov.hmrc.play.it.{ExternalService, MicroServiceEmbeddedServer, ServiceSpec}
-import uk.gov.hmrc.test.it.AuthorisationProvider
 import uk.gov.hmrc.ups.config.Jobs
 import uk.gov.hmrc.ups.model.EntityId
 import uk.gov.hmrc.ups.repository.UpdatedPrintSuppressions
+import com.github.tomakehurst.wiremock.client.WireMock._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -79,6 +79,38 @@ class UpdatedPrintSuppressionJobISpec extends EndpointSupport
 
   }
 
+
+  trait PreferencesStub {
+
+    def stubUpdatedPrintSuppression() = {
+      stubFor(post(urlMatching("/preferences/updated-print-suppression/pull-work-item"))
+        .withRequestBody(matching(
+          """
+            |{
+            |  filters: {
+            |    failedBefore: "2114-12-24T01:01:01.000Z",
+            |    receivedBefore: "2114-12-24T01:01:01.000Z"
+            |  }
+            |}
+          """.stripMargin))
+          .whenScenarioStateIs("TODO")
+           .willReturn(aResponse()
+          .withStatus(200)
+          .withBody(
+            """
+              |{
+              |  "entityId" : "bbc14eef-97d3-435e-975a-f2ab069af000",
+              |  "paperless" : true,
+              |  "updatedAt" : "2014-10-08T13:10:50.122Z",
+              |  "callbackUrl" : "/preferences/updated-print-suppression/543537da4d00004d00af5f9f/status"
+              |}
+            | """.
+              stripMargin)))
+    }
+  }
+
+
+
   trait TestCase {
     val utr = Generate.utr
     val nino = Generate.nino
@@ -87,9 +119,9 @@ class UpdatedPrintSuppressionJobISpec extends EndpointSupport
     def createValidRecord(): EntityId = {
       implicit val authHeader: (String, String) = createGGAuthorisationHeader(utr, Generate.nino)
 
-      post(`/preferences/terms-and-conditions`, Json.parse(s"""{"generic":{"accepted":true}, "email": "$testEmail"}""")).status should be(CREATED)
+      doPost(`/preferences/terms-and-conditions`, Json.parse(s"""{"generic":{"accepted":true}, "email": "$testEmail"}""")).status should be(CREATED)
 
-      val entityIdResponse = get(`/entity-resolver-admin/sa/:utr`(utr))
+      val entityIdResponse = doGet(`/entity-resolver-admin/sa/:utr`(utr))
       val entityId: EntityId = EntityId(entityIdResponse.body)
       val verificationToken = verificationTokenFor(entityId)
       put(`/portal/preferences/email`, Json.parse( s"""{"token":"$verificationToken"}""")).status should be(NO_CONTENT)
@@ -100,19 +132,19 @@ class UpdatedPrintSuppressionJobISpec extends EndpointSupport
       implicit val authHeader: (String, String) = createGGAuthorisationHeader(Generate.utr, Generate.nino)
 
       val entityId = Generate.entityId
-      post(`/preferences/:entityId/terms-and-conditions`(entityId), Json.parse(s"""{"generic":{"accepted":true}, "email": "$testEmail"}""")).status should be(CREATED)
+      doPost(`/preferences/:entityId/terms-and-conditions`(entityId), Json.parse(s"""{"generic":{"accepted":true}, "email": "$testEmail"}""")).status should be(CREATED)
       entityId
     }
 
     def createNinoOnlyRecord(): EntityId = {
       implicit val authHeader: (String, String) = createGGAuthorisationHeader(nino)
 
-      post(
+      doPost(
         `/preferences/terms-and-conditions`,
         Json.parse(s"""{"generic":{"accepted":true}, "email": "$testEmail"}""")
       ).status should be(CREATED)
 
-      val entityIdResponse = get(`/entity-resolver-admin/paye/:nino`(nino))
+      val entityIdResponse = doGet(`/entity-resolver-admin/paye/:nino`(nino))
       val entityId: EntityId = EntityId(entityIdResponse.body)
       val verificationToken = verificationTokenFor(entityId)
       put(
@@ -230,14 +262,14 @@ trait EndpointSupport {
     WS.url(preferencesResource("/updated-print-suppression/pull-work-item"))
 
 
-  def post(url: => WSRequestHolder, body: JsValue) = url.post(body).futureValue
+  def doPost(url: => WSRequestHolder, body: JsValue) = url.post(body).futureValue
 
   def put(url: => WSRequestHolder, body: JsValue) = url.put(body).futureValue
 
-  def get(url: => WSRequestHolder) = url.get().futureValue
+  def doGet(url: => WSRequestHolder) = url.get().futureValue
 
   def verificationTokenFor(entityId: EntityId) = {
-    val tokenResponse = get(`/preferences-admin/:entityId/verification-token`(entityId))
+    val tokenResponse = doGet(`/preferences-admin/:entityId/verification-token`(entityId))
     tokenResponse.status should be(200)
     tokenResponse.body
   }
