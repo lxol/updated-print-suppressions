@@ -16,23 +16,25 @@
 
 package uk.gov.hmrc.ups.repository
 
-import org.joda.time.LocalDate
+import org.joda.time.{DateTime, LocalDate}
+import play.api.Logger
 import play.api.libs.json.Json
-import reactivemongo.api.{ReadPreference, DB}
-import reactivemongo.api.commands.{UpdateWriteResult, WriteResult}
+import reactivemongo.api.commands.bson.BSONFindAndModifyCommand._
 import reactivemongo.api.indexes.{Index, IndexType}
+import reactivemongo.api.{DB, ReadPreference}
 import reactivemongo.bson.{BSONDocument, BSONObjectID}
-import reactivemongo.core.commands.{FindAndModify, Update}
 import reactivemongo.core.errors.DatabaseException
 import uk.gov.hmrc.mongo.ReactiveRepository
 import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 import uk.gov.hmrc.ups.model.PrintPreference
 
-import scala.RuntimeException
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 
-case class UpdatedPrintSuppressions(_id: BSONObjectID, counter: Int, printPreference: PrintPreference)
+case class UpdatedPrintSuppressions(_id: BSONObjectID,
+                                    counter: Int,
+                                    printPreference: PrintPreference,
+                                    updatedAt: DateTime)
 
 object UpdatedPrintSuppressions {
   implicit val idf = ReactiveMongoFormats.objectIdFormats
@@ -40,16 +42,15 @@ object UpdatedPrintSuppressions {
 
   implicit val formats = Json.format[UpdatedPrintSuppressions]
   val datePattern = "yyyyMMdd"
+
   def toString(date: LocalDate) = date.toString(datePattern)
+
   def repoNameTemplate(date: LocalDate) = s"updated_print_suppressions_${toString(date)}"
 }
 
 class UpdatedPrintSuppressionsRepository(date: LocalDate, repoCreator: String => CounterRepository)
                                         (implicit mongo: () => DB, ec: ExecutionContext)
   extends ReactiveRepository[UpdatedPrintSuppressions, BSONObjectID](UpdatedPrintSuppressions.repoNameTemplate(date), mongo, UpdatedPrintSuppressions.formats) {
-
-  def removeByUtr(id: String): Future[Boolean] =
-    collection.remove(BSONDocument("printPreference.id" -> id)).map { _.ok }
 
   val counterRepo = repoCreator(UpdatedPrintSuppressions.toString(date))
 
@@ -72,32 +73,44 @@ class UpdatedPrintSuppressionsRepository(date: LocalDate, repoCreator: String =>
     e.map(_.map(ups => ups.printPreference))
   }
 
-  def insert(printPreference: PrintPreference)(implicit ec: ExecutionContext): Future[Unit] = {
+  def insert(printPreference: PrintPreference, updatedAt: DateTime)(implicit ec: ExecutionContext): Future[Unit] = {
     val selector = BSONDocument("printPreference.id" -> printPreference.id, "printPreference.idType" -> printPreference.idType)
+    val updatedAtSelector = BSONDocument("updatedAt" -> Json.obj("$lte" -> updatedAt))
 
-    val maxAttempts = 10
-
-    def doInsert(attempt: Int): Future[WriteResult] =
-      collection.find(selector).one[UpdatedPrintSuppressions].flatMap {
-
+    collection.find(selector).one[UpdatedPrintSuppressions].
+      flatMap {
         case Some(ups) =>
           collection.update(
-            selector = BSONDocument("_id" -> ups._id),
+            selector = BSONDocument("_id" -> ups._id) ++ updatedAtSelector,
             update = UpdatedPrintSuppressions.formats.writes(ups.copy(printPreference = printPreference))
-          )
+          ).map { _ => () }
 
-        case None => counterRepo.next.flatMap(counter =>
-          super.insert(UpdatedPrintSuppressions(BSONObjectID.generate, counter, printPreference)).recoverWith {
-            case e: DatabaseException if e.code == Some(11000) && attempt < maxAttempts =>
-              doInsert(attempt + 1)
-            case ex => Future.failed(ex)
-          })
+        case None =>
+          counterRepo.next.flatMap { counter =>
+            collection.findAndUpdate(
+              selector = selector ++ updatedAtSelector,
+              update = BSONDocument(
+                "$setOnInsert" -> Json.obj(
+                  "_id" -> BSONObjectIDFormat.writes(BSONObjectID.generate),
+                  "counter" -> counter
+                ),
+                "$set" -> Json.obj(
+                  "updatedAt" -> updatedAt,
+                  "printPreference" -> Json.toJson(printPreference)
+                )
+              ),
+              upsert = true,
+              fetchNewObject = false
+            )
+          }.
+          map { _ => () }.
+          recover {
+            case e: RuntimeException if e.getMessage.contains("11000") =>
+              Logger.warn(s"failed to insert print preference $printPreference updated at ${updatedAt.getMillis}", e)
+              ()
+          }
       }
 
-    doInsert(1).filter(_.ok).transform(
-      _ => (),
-      new RuntimeException(s"could not insert preference $printPreference", _)
-    )
   }
 }
 
@@ -136,6 +149,7 @@ class MongoCounterRepository private(counterName: String)(implicit mongo: () => 
     ).map(_.ok)
   }
 }
+
 object MongoCounterRepository {
   def apply(counterName: String)(implicit ec: ExecutionContext, mongo: () => DB): MongoCounterRepository = {
     val result = new MongoCounterRepository(counterName)

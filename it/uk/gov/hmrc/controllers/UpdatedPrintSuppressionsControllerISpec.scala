@@ -24,11 +24,9 @@ import uk.gov.hmrc.ups.model.PrintPreference
 
 class UpdatedPrintSuppressionsControllerISpec extends UnitSpec with WithFakeApplication with TestServer with IntegrationPatience {
 
-
   "list" should {
+
     "return an empty list when there are no print suppression change events for that day" in new TestSetup {
-
-
       val response = get(`/preferences/sa/individual/print-suppression`(Some(yesterdayAsString), None, None))
       private val jsonBody = Json.parse(response.body)
       (jsonBody \ "pages").as[Int] shouldBe 0
@@ -36,11 +34,14 @@ class UpdatedPrintSuppressionsControllerISpec extends UnitSpec with WithFakeAppl
     }
 
     "return all available print suppression change events occurred that day" in new TestSetup {
-
       val ppOne = PrintPreference("11111111", "someType", List.empty)
       val ppTwo = PrintPreference("22222222", "someType", List("f1", "f2"))
-      await(repoYesterday.insert(ppOne))
-      await(repoYesterday.insert(ppTwo))
+
+      await(
+        repoYesterday.insert(ppOne, yesterday.toDateTimeAtStartOfDay).flatMap { _ =>
+          repoYesterday.insert(ppTwo, yesterday.toDateTimeAtStartOfDay)
+        }
+      )
 
       val response = get(`/preferences/sa/individual/print-suppression`(Some(yesterdayAsString), None, None))
       response.status shouldBe 200
@@ -56,8 +57,11 @@ class UpdatedPrintSuppressionsControllerISpec extends UnitSpec with WithFakeAppl
 
       val ppOne = PrintPreference("11111111", "someType", List.empty)
       val ppTwo = PrintPreference("22222222", "someType", List("f1", "f2"))
-      await(repoToday.insert(ppOne))
-      await(repoYesterday.insert(ppTwo))
+      await(
+        repoToday.insert(ppOne, today.toDateTimeAtStartOfDay).flatMap { _ =>
+          repoYesterday.insert(ppTwo, yesterday.toDateTimeAtStartOfDay)
+        }
+      )
 
       val response = get(`/preferences/sa/individual/print-suppression`(Some(yesterdayAsString), None, None))
       val jsonBody = Json.parse(response.body)
@@ -71,7 +75,10 @@ class UpdatedPrintSuppressionsControllerISpec extends UnitSpec with WithFakeAppl
     }
 
     "limit the number of events returned and a the path to next batch of events" in new TestSetup {
-      0 to 9 foreach(n => await(repoYesterday.insert(PrintPreference(s"id_$n", "someType", List.empty))))
+      0 to 9 foreach { n =>
+        await(repoYesterday.insert(PrintPreference(s"id_$n", "someType", List.empty), yesterday.toDateTimeAtStartOfDay))
+      }
+
       val response = get(`/preferences/sa/individual/print-suppression`(Some(yesterdayAsString), None, Some("6")))
 
       val jsonBody = Json.parse(response.body)
@@ -81,7 +88,7 @@ class UpdatedPrintSuppressionsControllerISpec extends UnitSpec with WithFakeAppl
     }
 
     "honor the offset when another batch of events is requested" in new TestSetup {
-      0 to 9 foreach(n => await(repoYesterday.insert(PrintPreference(s"id_$n", "someType", List.empty))))
+      0 to 9 foreach(n => await(repoYesterday.insert(PrintPreference(s"id_$n", "someType", List.empty), yesterday.toDateTimeAtStartOfDay)))
       val response = get(`/preferences/sa/individual/print-suppression`(Some(yesterdayAsString), Some("6"), Some("6")))
 
       val jsonBody = Json.parse(response.body)

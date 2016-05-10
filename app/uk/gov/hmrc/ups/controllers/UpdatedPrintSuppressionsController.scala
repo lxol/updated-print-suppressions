@@ -39,23 +39,27 @@ trait UpdatedPrintSuppressionsController extends BaseController {
     Action.async { implicit request =>
       pastLocalDateBinder.bind("updated-on", request.queryString) match {
         case Some(Right(updatedOn)) =>
-
           val repository = new UpdatedPrintSuppressionsRepository(updatedOn.value, counterName => MongoCounterRepository(counterName))
           val limit = optLimit.getOrElse(Limit.max)
           val offset = optOffset.getOrElse(0)
           for {
             count <- repository.count
-            updates <- repository
-              .find(offset, limit.value)
+            updates <- repository.find(offset, limit.value)
           } yield {
             val pages: Int = (BigDecimal(count) / BigDecimal(limit.value)).setScale(0, RoundingMode.UP).intValue()
-            Ok(Json.toJson(UpdatedPrintPreferences(
-              pages = pages,
-              next = nextPageURL(updatedOn, limit, count, offset),
-              updates = updates))
+            Ok(
+              Json.toJson(
+                UpdatedPrintPreferences(
+                  pages = pages,
+                  next = nextPageURL(updatedOn, limit, count, offset),
+                  updates = updates
+                )
+              )
             )
           }
+
         case None => throw new BadRequestException("updated-on is a mandatory parameter")
+
         case Some(Left(message)) => throw new BadRequestException(message)
       }
     }

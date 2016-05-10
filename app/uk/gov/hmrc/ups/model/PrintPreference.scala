@@ -31,5 +31,5 @@ object UpdatedPrintPreferences {
 case class PrintPreference(id: String, idType: String, formIds: List[String])
 
 object PrintPreference {
-  val formats = Json.format[PrintPreference]
+  implicit val formats = Json.format[PrintPreference]
 }

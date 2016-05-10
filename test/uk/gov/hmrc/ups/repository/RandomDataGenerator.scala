@@ -18,10 +18,10 @@ package uk.gov.hmrc.ups.repository
 
 import org.joda.time.LocalDate
 import org.scalatest.DoNotDiscover
-import play.api.test.Helpers._
 import reactivemongo.bson.BSONObjectID
 import uk.gov.hmrc.mongo.MongoSpecSupport
 import uk.gov.hmrc.play.test.UnitSpec
+import uk.gov.hmrc.time.DateTimeUtils
 import uk.gov.hmrc.ups.model.PrintPreference
 
 @DoNotDiscover
@@ -46,13 +46,12 @@ class RandomDataGenerator extends UnitSpec {
     }
 
     def generateBATCH_SIZEEntries(offset: Int): List[UpdatedPrintSuppressions] =
-      for (n <- List.range(offset, offset + BATCH_SIZE))
-        yield new UpdatedPrintSuppressions(BSONObjectID.generate, n, new PrintPreference(s"anId_$n", "anId", List("f1", "f2")))
+      for (n <- List.range(offset, offset + BATCH_SIZE)) yield UpdatedPrintSuppressions(
+        BSONObjectID.generate, n, PrintPreference(s"anId_$n", "anId", List("f1", "f2")), DateTimeUtils.now
+      )
 
   }
 
-  class TestSetup(override val databaseName: String = "updated-print-suppressions") extends MongoSpecSupport {
-
-  }
+  class TestSetup(override val databaseName: String = "updated-print-suppressions") extends MongoSpecSupport
 
 }

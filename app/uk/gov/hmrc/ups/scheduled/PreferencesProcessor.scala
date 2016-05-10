@@ -16,17 +16,20 @@
 
 package uk.gov.hmrc.ups.scheduled
 
-import org.joda.time.LocalDate
-import play.api.{Play, Logger}
+import org.joda.time.{DateTime, LocalDate}
+import play.api.{Logger, Play}
 import play.api.http.Status._
-import play.api.libs.iteratee.{ Enumerator, Iteratee }
+import play.api.libs.iteratee.{Enumerator, Iteratee}
 import play.modules.reactivemongo.ReactiveMongoPlugin
 import uk.gov.hmrc.domain.SaUtr
+import uk.gov.hmrc.domain.TaxIds.TaxIdWithName
 import uk.gov.hmrc.play.http.HeaderCarrier
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
 import uk.gov.hmrc.ups.connectors.{EntityResolverConnector, PreferencesConnector}
-import uk.gov.hmrc.ups.model.{PulledItem, PrintPreference}
+import uk.gov.hmrc.ups.model.{PrintPreference, PulledItem}
 import uk.gov.hmrc.ups.repository.{MongoCounterRepository, UpdatedPrintSuppressionsRepository}
+import uk.gov.hmrc.workitem
+import uk.gov.hmrc.workitem.ProcessingStatus
 
 import scala.concurrent.Future
 
@@ -50,15 +53,16 @@ trait PreferencesProcessor {
             case Succeeded(_) =>
               accumulator.copy(processed = accumulator.processed + 1)
 
-            case Failed(_,_) =>
+            case Failed(msg, ex) =>
+              ex.fold(Logger.warn(msg)) { Logger.warn(msg, _) }
               accumulator.copy(failed = accumulator.failed + 1)
           }
         }
       )
 
   def processWorkItem(implicit hc: HeaderCarrier): PulledWorkItemResult => Future[ProcessingState] = {
-    case Left(error) => Future.successful(
-      Failed(s"Pull from preferences failed with status code = $error")
+    case Left(statusCodeError) => Future.successful(
+      Failed(s"Pull from preferences failed with status code = $statusCodeError")
     )
 
     case Right(item) => processUpdates(item)
@@ -69,59 +73,49 @@ trait PreferencesProcessor {
       case Right(Some(entity)) =>
         entity.taxIdentifiers.
           collectFirst[SaUtr] { case utr: SaUtr => utr }.
-          fold(updatePreference(item.callbackUrl, None)) { utr =>
-            insertAndUpdate(
-              utr, if (item.paperless) formIds else List.empty, item.callbackUrl
-            )
+          fold(updatePreference(item.callbackUrl, workitem.Succeeded)) { utr =>
+            insertAndUpdate(createPrintPreference(utr, item), item.callbackUrl, item.updatedAt)
           }
 
       case x =>
-        Logger.warn(s"failed to process ${item.entityId} from entity resolver")
-        val status = if (x.isRight) "permanently-failed" else "failed"
+        val status = if (x.isRight) workitem.PermanentlyFailed else workitem.Failed
         preferencesConnector.changeStatus(item.callbackUrl, status).map {
           case OK => Failed(
-            s"marked preference with entity id [${item.entityId} ] as $status"
+            s"marked preference with entity id [${item.entityId} ] as ${status.name}"
           )
           case notOk =>
             val msg =
               s"""could not change status to $status for entity id = ${item.entityId}
                   |response status code was $notOk"""".stripMargin
-            Logger.warn(msg)
+
             Failed(msg)
         }
     }
 
-  def insertAndUpdate(utr: SaUtr, forms: List[String], callbackUrl: String)
+  def findUtr(ids: Set[TaxIdWithName]): Option[SaUtr] = ids.collectFirst { case saUtr: SaUtr => saUtr }
+
+  def insertAndUpdate(printPreference: PrintPreference, callbackUrl: String, updatedAt: DateTime)
                      (implicit hc: HeaderCarrier): Future[ProcessingState] =
-    repo.insert(PrintPreference(utr.value, "sautr", forms)).
-      flatMap { _ => updatePreference(callbackUrl, Some(utr)) }.
+    repo.insert(printPreference, updatedAt).
+      flatMap { _ => updatePreference(callbackUrl, workitem.Succeeded) }.
       recoverWith { case ex =>
-        Logger.warn(s"failed to include $utr in updated print suppressions", ex)
-        preferencesConnector.changeStatus(callbackUrl, "failed").map { _ =>
-          Failed(s"failed to include $utr in updated print suppressions", Some(ex))
+        preferencesConnector.changeStatus(callbackUrl, workitem.Failed).map { _ =>
+          Failed(s"failed to include $printPreference in updated print suppressions", Some(ex))
         }
       }
 
-  def updatePreference(callbackUrl: String, utr: Option[SaUtr])
-                      (implicit hc: HeaderCarrier): Future[ProcessingState] =
-    preferencesConnector.changeStatus(callbackUrl, "succeeded").
-      flatMap {
+  def updatePreference(callbackUrl: String, status: ProcessingStatus)(implicit hc: HeaderCarrier): Future[ProcessingState] =
+    preferencesConnector.changeStatus(callbackUrl, status).
+      map {
         case status @ (OK | CONFLICT) =>
-          val id = utr.fold("[]")(_.value)
-          Future.successful(
-            Succeeded(s"copied data from preferences with utr = $id")
-          )
+          Succeeded(s"updated preference: $callbackUrl")
+
         case _ =>
-          utr.map { u =>
-            repo.removeByUtr(u.value).map { _ =>
-              Failed(s"failed to update status in preferences for utr = ${u.value}")
-            }
-          }.getOrElse(
-            Future.successful(
-              Failed(s"failed to update status in preferences for entity with nino only")
-            )
-          )
+          Failed(s"failed to update preference: $callbackUrl")
       }
+
+  def createPrintPreference(utr: SaUtr, item: PulledItem) =
+    PrintPreference(utr.value, "sautr", if (item.paperless) formIds else List.empty)
 }
 
 object PreferencesProcessor extends PreferencesProcessor {

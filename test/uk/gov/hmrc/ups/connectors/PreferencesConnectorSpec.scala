@@ -26,8 +26,9 @@ import play.api.libs.json.{JsValue, Json}
 import uk.gov.hmrc.play.http.{HeaderCarrier, HttpPost, HttpResponse}
 import uk.gov.hmrc.play.test.UnitSpec
 import uk.gov.hmrc.time.DateTimeUtils
-import uk.gov.hmrc.ups.model.{Filters, PulledItem, WorkItemRequest}
+import uk.gov.hmrc.ups.model.PulledItem
 import uk.gov.hmrc.ups.utils.Generate
+import uk.gov.hmrc.workitem.Succeeded
 
 class PreferencesConnectorSpec extends UnitSpec with ScalaFutures with MockitoSugar {
 
@@ -67,7 +68,7 @@ class PreferencesConnectorSpec extends UnitSpec with ScalaFutures with MockitoSu
 
       when(connector.httpWrapper.postF[JsValue](any())).thenReturn(HttpResponse(Status.OK, None))
 
-      connector.changeStatus(callbackUrl, "succeeded").futureValue should be(Status.OK)
+      connector.changeStatus(callbackUrl, Succeeded).futureValue should be(Status.OK)
 
       verify(connector.httpWrapper).postF[JsValue](any())
     }

@@ -16,9 +16,9 @@
 
 package uk.gov.hmrc.ups.repository
 
-import org.joda.time.LocalDate
+import org.joda.time.{DateTime, LocalDate}
 import org.scalatest.BeforeAndAfterEach
-import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import play.api.libs.json.Json
 import uk.gov.hmrc.mongo.MongoSpecSupport
 import uk.gov.hmrc.play.http.HeaderCarrier
@@ -26,9 +26,9 @@ import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
 import uk.gov.hmrc.play.test.UnitSpec
 import uk.gov.hmrc.ups.model.PrintPreference
 
-import scala.concurrent.{Promise, Future, ExecutionContext}
+import scala.concurrent.{ExecutionContext, Future, Promise}
 
-class UpdatedPrintSuppressionsRepositorySpec extends UnitSpec with MongoSpecSupport with BeforeAndAfterEach with ScalaFutures {
+class UpdatedPrintSuppressionsRepositorySpec extends UnitSpec with MongoSpecSupport with BeforeAndAfterEach with ScalaFutures with IntegrationPatience {
   implicit val hc = HeaderCarrier()
 
   private val TODAY: LocalDate = new LocalDate()
@@ -43,33 +43,34 @@ class UpdatedPrintSuppressionsRepositorySpec extends UnitSpec with MongoSpecSupp
   }
 
   override def beforeEach(): Unit = {
-    new UpdatedPrintSuppressionsRepository(TODAY, _ => counterRepoStub).collection.drop()
-    MongoCounterRepository(TODAY.toString("yyyyMMdd")).removeAll()
+    await(new UpdatedPrintSuppressionsRepository(TODAY, _ => counterRepoStub).collection.drop())
+    await(MongoCounterRepository(TODAY.toString("yyyyMMdd")).removeAll())
   }
+
+  def toCounterAndPreference(ups: UpdatedPrintSuppressions): (Int, PrintPreference) = (ups.counter, ups.printPreference)
 
   "UpdatedPrintSuppressionsRepository" should {
 
-    "increment the counter and save the updated print suppression" in {
-      val repository = new UpdatedPrintSuppressionsRepository(TODAY, _ => counterRepoStub)
+    val now = DateTime.now()
 
+    "increment the counter and save the updated print suppression" in {
+
+      val repository = new UpdatedPrintSuppressionsRepository(TODAY, _ => counterRepoStub)
 
       val ppOne = PrintPreference("11111111", "someType", List.empty)
       val ppTwo = PrintPreference("22222222", "someType", List.empty)
 
-      await(repository.insert(ppOne))
-      await(repository.insert(ppTwo))
+      await(repository.insert(ppOne, now))
+      await(repository.insert(ppTwo, now))
 
       val all = repository.findAll()
-      await(all) shouldBe List(
-        UpdatedPrintSuppressions(all.head._id, 0, ppOne),
-        UpdatedPrintSuppressions(all.last._id, 1, ppTwo)
-      )
+      await(all).map { toCounterAndPreference } shouldBe List((0, ppOne), (1, ppTwo))
     }
 
     "find and return all records within a range" in {
 
       val repository = new UpdatedPrintSuppressionsRepository(TODAY, _ => counterRepoStub)
-      0 to 9 foreach(n => await(repository.insert(PrintPreference(s"id_$n","a type", List.empty))))
+      0 to 9 foreach(n => await(repository.insert(PrintPreference(s"id_$n","a type", List.empty), now)))
       repository.find(0, 2).futureValue shouldBe List(
         PrintPreference("id_0","a type", List.empty),
         PrintPreference("id_1","a type", List.empty)
@@ -82,25 +83,11 @@ class UpdatedPrintSuppressionsRepositorySpec extends UnitSpec with MongoSpecSupp
 
       val repository = new UpdatedPrintSuppressionsRepository(TODAY, _ => counterRepoStub)
 
-      await(repository.insert(pp))
-      await(repository.insert(preferenceWithSameId))
+      await(repository.insert(pp, now))
+      await(repository.insert(preferenceWithSameId, now.plusMillis(1)))
 
       val all = repository.findAll()
-      all.size should be (1)
-      await(all) shouldBe List(UpdatedPrintSuppressions(all.head._id, 0, preferenceWithSameId))
-    }
-
-    "remove the entry by the given utr" in {
-      val utr: String = "11111111"
-      val pp = PrintPreference(utr, "someType", List.empty)
-
-      val repository = new UpdatedPrintSuppressionsRepository(TODAY, _ => counterRepoStub)
-
-      await(repository.insert(pp))
-
-      await(repository.removeByUtr(pp.id)) shouldBe true
-      await(repository.findAll()) should be (empty)
-
+      await(all).map { toCounterAndPreference } shouldBe List((0, preferenceWithSameId))
     }
 
     "duplicate keys due to race conditions are recoverable" in {
@@ -108,20 +95,18 @@ class UpdatedPrintSuppressionsRepositorySpec extends UnitSpec with MongoSpecSupp
 
       val repository = new UpdatedPrintSuppressionsRepository(TODAY, _ => counterRepoStub)
 
-      val isFirstCompletedFirst = await(
-        Future.firstCompletedOf(
-          List(
-            repository.insert(PrintPreference(utr, "someType", List.empty)).map { _ => true },
-            repository.insert(PrintPreference(utr, "someType", List("something"))).map { _ => false }
-          )
-        )
-      )
-
-      val expectedResult = if (isFirstCompletedFirst) List.empty else List("something")
+     await(
+       Future.sequence(
+         List(
+           repository.insert(PrintPreference(utr, "someType", List.empty), now),
+           repository.insert(PrintPreference(utr, "someType", List("something")), now.plusMillis(1))
+         )
+       ).size
+     )
 
       repository.findAll().map(
         _.find(_.printPreference.id == utr).map(_.printPreference.formIds)
-      ).futureValue shouldBe Some(expectedResult)
+      ).futureValue shouldBe Some(List("something"))
     }
 
   }

@@ -14,7 +14,7 @@ class TestSetup(override val databaseName: String = "updated-print-suppressions"
   implicit val ec = scala.concurrent.ExecutionContext.Implicits.global
 
   val today = LocalDate.now
-  private val yesterday = today.minusDays(1)
+  val yesterday = today.minusDays(1)
 
 
   val todayString = today.toString("yyyy-MM-dd")

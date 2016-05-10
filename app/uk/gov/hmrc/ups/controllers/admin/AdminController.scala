@@ -23,6 +23,7 @@ import play.modules.reactivemongo.ReactiveMongoPlugin
 import uk.gov.hmrc.play.microservice.controller.BaseController
 import uk.gov.hmrc.ups.model.PrintPreference
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
+import uk.gov.hmrc.time.DateTimeUtils
 import uk.gov.hmrc.ups.repository.{MongoCounterRepository, UpdatedPrintSuppressionsRepository}
 
 class AdminController extends BaseController {
@@ -42,7 +43,7 @@ class AdminController extends BaseController {
           LocalDate.parse(date, dtf),
             name => MongoCounterRepository(name)
           ).
-          insert(body).
+          insert(body, DateTimeUtils.now).
           map { _ => Ok("Record inserted") }.
           recover { case _ => InternalServerError("Failed to insert the record") }
       }

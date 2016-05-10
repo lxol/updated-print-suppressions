@@ -22,7 +22,7 @@ class AdminControllerISpec extends UnitSpec with TestServer {
 
       val all = repoYesterday.findAll()
 
-      await(all) shouldBe List(UpdatedPrintSuppressions(all.head._id, 0, preference))
+      await(all).map { x => (x.counter, preference) } shouldBe List((0, preference))
     }
   }
 }

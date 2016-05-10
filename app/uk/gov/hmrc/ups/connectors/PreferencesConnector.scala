@@ -25,6 +25,7 @@ import uk.gov.hmrc.play.http._
 import uk.gov.hmrc.time.DateTimeUtils
 import uk.gov.hmrc.ups.config.WSHttp
 import uk.gov.hmrc.ups.model.{Filters, PulledItem, WorkItemRequest}
+import uk.gov.hmrc.workitem.ProcessingStatus
 
 import scala.concurrent.Future
 
@@ -50,8 +51,8 @@ trait PreferencesConnector {
       workItemRequest
     )
 
-  def changeStatus(callbackUrl: String, status: String)(implicit hc: HeaderCarrier) =
-    http.POST[JsValue, Int](s"$serviceUrl$callbackUrl", Json.obj("status" -> status))
+  def changeStatus(callbackUrl: String, status: ProcessingStatus)(implicit hc: HeaderCarrier) =
+    http.POST[JsValue, Int](s"$serviceUrl$callbackUrl", Json.obj("status" -> status.name))
 
   def retryFailedUpdatesAfter: Duration
 
