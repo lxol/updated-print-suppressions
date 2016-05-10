@@ -1,4 +1,4 @@
-package uk.gov.hmrc.controllers
+package uk.gov.hmrc.ups.controllers
 
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.ScalaFutures

@@ -19,11 +19,9 @@ package uk.gov.hmrc.ups.repository
 import org.joda.time.{DateTime, LocalDate}
 import play.api.Logger
 import play.api.libs.json.Json
-import reactivemongo.api.commands.bson.BSONFindAndModifyCommand._
 import reactivemongo.api.indexes.{Index, IndexType}
 import reactivemongo.api.{DB, ReadPreference}
 import reactivemongo.bson.{BSONDocument, BSONObjectID}
-import reactivemongo.core.errors.DatabaseException
 import uk.gov.hmrc.mongo.ReactiveRepository
 import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 import uk.gov.hmrc.ups.model.PrintPreference
