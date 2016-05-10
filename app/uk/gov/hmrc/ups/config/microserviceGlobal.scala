@@ -61,5 +61,8 @@ object MicroserviceGlobal extends DefaultMicroserviceGlobal with RunMode with Ru
   override val microserviceAuditFilter = MicroserviceAuditFilter
 
   override val authFilter = Some(MicroserviceAuthFilter)
-  override val scheduledJobs: Seq[ScheduledJob] = Seq(Jobs.RemoveOlderCollectionsJob)
+  override val scheduledJobs: Seq[ScheduledJob] = Seq(
+    Jobs.RemoveOlderCollectionsJob,
+    Jobs.UpdatedPrintSuppressionJob
+  )
 }

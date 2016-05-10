@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.ups.service
-
-import java.util.concurrent.atomic.AtomicInteger
+package uk.gov.hmrc.ups.scheduled
 
 import org.joda.time.LocalDate
 import org.scalatest.concurrent.ScalaFutures

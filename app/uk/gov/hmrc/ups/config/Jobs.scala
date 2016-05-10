@@ -19,9 +19,9 @@ package uk.gov.hmrc.ups.config
 import play.api.{Logger, Play}
 import uk.gov.hmrc.play.config.RunMode
 import uk.gov.hmrc.play.http.HeaderCarrier
-import uk.gov.hmrc.play.scheduling.{ScheduledJob, ExclusiveScheduledJob}
-import uk.gov.hmrc.ups.scheduled.PreferencesProcessor
-import uk.gov.hmrc.ups.service._
+import uk.gov.hmrc.play.scheduling.{ExclusiveScheduledJob, ScheduledJob}
+import uk.gov.hmrc.ups.scheduled.{PreferencesProcessor, RemoveOlderCollections}
+import uk.gov.hmrc.ups.scheduled._
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
@@ -39,7 +39,9 @@ object Jobs {
             Logger.info(s"successfully removed collection $collectionName older than $durationInDays in $name job")
 
           case Failed(collectionName, ex) =>
-            Logger.error(s"attempted to removed collection $collectionName and failed in $name job", ex)
+            val msg = s"attempted to removed collection $collectionName and failed in $name job"
+            ex.fold(Logger.error(msg)) { Logger.error(msg, _) }
+
         }
         Result(
           s"""$name completed with:

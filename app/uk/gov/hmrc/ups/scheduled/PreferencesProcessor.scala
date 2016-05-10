@@ -60,7 +60,7 @@ trait PreferencesProcessor {
         }
       )
 
-  def processWorkItem(implicit hc: HeaderCarrier): PulledWorkItemResult => Future[ProcessingState] = {
+  def processWorkItem(implicit hc: HeaderCarrier): PulledWorkItemResult => Future[ProcessingResult] = {
     case Left(statusCodeError) => Future.successful(
       Failed(s"Pull from preferences failed with status code = $statusCodeError")
     )
@@ -68,7 +68,7 @@ trait PreferencesProcessor {
     case Right(item) => processUpdates(item)
   }
 
-  def processUpdates(item: PulledItem)(implicit hc: HeaderCarrier): Future[ProcessingState] =
+  def processUpdates(item: PulledItem)(implicit hc: HeaderCarrier): Future[ProcessingResult] =
     entityResolverConnector.getTaxIdentifiers(item.entityId).flatMap {
       case Right(Some(entity)) =>
         entity.taxIdentifiers.
@@ -95,7 +95,7 @@ trait PreferencesProcessor {
   def findUtr(ids: Set[TaxIdWithName]): Option[SaUtr] = ids.collectFirst { case saUtr: SaUtr => saUtr }
 
   def insertAndUpdate(printPreference: PrintPreference, callbackUrl: String, updatedAt: DateTime)
-                     (implicit hc: HeaderCarrier): Future[ProcessingState] =
+                     (implicit hc: HeaderCarrier): Future[ProcessingResult] =
     repo.insert(printPreference, updatedAt).
       flatMap { _ => updatePreference(callbackUrl, workitem.Succeeded) }.
       recoverWith { case ex =>
@@ -104,7 +104,7 @@ trait PreferencesProcessor {
         }
       }
 
-  def updatePreference(callbackUrl: String, status: ProcessingStatus)(implicit hc: HeaderCarrier): Future[ProcessingState] =
+  def updatePreference(callbackUrl: String, status: ProcessingStatus)(implicit hc: HeaderCarrier): Future[ProcessingResult] =
     preferencesConnector.changeStatus(callbackUrl, status).
       map {
         case status @ (OK | CONFLICT) =>
@@ -142,7 +142,4 @@ object PreferencesProcessor extends PreferencesProcessor {
   def entityResolverConnector: EntityResolverConnector = EntityResolverConnector
 }
 
-sealed trait ProcessingState extends Product with Serializable
-final case class Succeeded(msg: String) extends ProcessingState
-final case class Failed(msg: String, ex: Option[Throwable] = None) extends ProcessingState
 final case class TotalCounts(processed: Int, failed: Int)

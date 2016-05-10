@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.ups.service
+package uk.gov.hmrc.ups.scheduled
 
 import org.joda.time.format.DateTimeFormat
 import org.joda.time.{Duration => jDuration, _}
-import uk.gov.hmrc.ups.repository.{UpdatedPrintSuppressionsDatabase, UpdatedPrintSuppressions}
+import uk.gov.hmrc.ups.repository.{UpdatedPrintSuppressions, UpdatedPrintSuppressionsDatabase}
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
@@ -45,7 +45,7 @@ trait SelectAndRemove {
     listCollections().flatMap { names =>
       Future.fold(
         names.filter(filter).map { name =>
-          expireCollection(name).map(_ => Succeeded(name)).recover { case ex => Failed(name, ex) }
+          expireCollection(name).map(_ => Succeeded(name)).recover { case ex => Failed(name, Some(ex)) }
         }
       )(Totals(List.empty, List.empty))(resultHandler)
     }
@@ -72,8 +72,4 @@ trait DeleteCollectionFilter {
 
   }
 }
-
-sealed trait ProcessingResult extends Product with Serializable
-final case class Succeeded(collectionName: String) extends ProcessingResult
-final case class Failed(collectionName: String, ex: Throwable) extends ProcessingResult
 final case class Totals(failures: List[Failed], successes: List[Succeeded])

@@ -71,8 +71,8 @@ object PreferencesConnector extends PreferencesConnector with ServicesConfig {
   lazy val retryFailedUpdatesAfter: Duration =
     Duration.millis(
       Play.current.configuration.
-        getMilliseconds(s"$env.ups.retryFailedUpdatesAfter").
-        getOrElse(throw new IllegalStateException(s"$env.ups.retryFailedUpdatesAfter config value not set"))
+        getMilliseconds(s"$env.updatedPrintSuppressions.retryFailedUpdatesAfter").
+        getOrElse(throw new IllegalStateException(s"$env.updatedPrintSuppressions.retryFailedUpdatesAfter config value not set"))
     )
 
   lazy val serviceUrl: String = baseUrl("preferences")
