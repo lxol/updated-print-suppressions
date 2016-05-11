@@ -30,7 +30,7 @@ private object AppDependencies {
   private val playJsonLoggerVersion = "2.1.1"
   private val playUrlBindersVersion = "1.0.0"
   private val playConfigVersion = "2.0.1"
-  private val domainVersion = "3.6.0"
+  private val domainVersion = "3.7.0"
   private val hmrcTestVersion = "1.6.0"
   private val playReactivemongoVersion = "4.8.0"
   private val playScheduleVersion = "3.0.0"
@@ -60,9 +60,9 @@ private object AppDependencies {
       override lazy val test = Seq(
         "uk.gov.hmrc" %% "hmrctest" % hmrcTestVersion,
         "org.scalatest" %% "scalatest" % "2.2.6",
-        "org.pegdown" % "pegdown" % "1.5.0",
+        "org.pegdown" % "pegdown" % "1.6.0",
         "com.typesafe.play" %% "play-test" % PlayVersion.current,
-        "uk.gov.hmrc" %% "reactivemongo-test" % "1.5.0"
+        "uk.gov.hmrc" %% "reactivemongo-test" % "1.6.0"
       ).map (_ % scope)
     }.test
   }
@@ -75,9 +75,9 @@ private object AppDependencies {
       override lazy val test = Seq(
         "uk.gov.hmrc" %% "hmrctest" % hmrcTestVersion,
         "org.scalatest" %% "scalatest" % "2.2.6",
-        "org.pegdown" % "pegdown" % "1.5.0",
+        "org.pegdown" % "pegdown" % "1.6.0",
         "com.typesafe.play" %% "play-test" % PlayVersion.current,
-        "uk.gov.hmrc" %% "reactivemongo-test" % "1.5.0",
+        "uk.gov.hmrc" %% "reactivemongo-test" % "1.6.0",
         "uk.gov.hmrc" %% "auth-test" % "2.2.0"
       ).map(_  % scope)
     }.test
