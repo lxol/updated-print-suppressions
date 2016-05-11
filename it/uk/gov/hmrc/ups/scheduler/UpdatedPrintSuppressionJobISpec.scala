@@ -9,7 +9,7 @@ import uk.gov.hmrc.ups.ispec.UpdatedPrintSuppressionTestServer
 import uk.gov.hmrc.ups.model.PrintPreference
 import uk.gov.hmrc.ups.repository.UpdatedPrintSuppressions
 import uk.gov.hmrc.ups.utils.Generate
-import uk.gov.hmrc.workitem.{InProgress, PermanentlyFailed, Succeeded}
+import uk.gov.hmrc.workitem.{PermanentlyFailed, Succeeded}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -76,9 +76,9 @@ class UpdatedPrintSuppressionJobISpec extends UpdatedPrintSuppressionTestServer 
           .willReturn(aResponse().withStatus(500))
       )
 
-      intercept[RuntimeException] {
-        await(Jobs.UpdatedPrintSuppressionJob.executeInMutex)
-      }
+      await(Jobs.UpdatedPrintSuppressionJob.executeInMutex)
+
+      await(upsCollection.count()) shouldBe 0
     }
 
     "continue in case of errors setting the state on preferences" in {

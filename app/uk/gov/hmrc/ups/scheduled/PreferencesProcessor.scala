@@ -17,12 +17,11 @@
 package uk.gov.hmrc.ups.scheduled
 
 import org.joda.time.{DateTime, LocalDate}
-import play.api.{Logger, Play}
 import play.api.http.Status._
 import play.api.libs.iteratee.{Enumerator, Iteratee}
+import play.api.{Logger, Play}
 import play.modules.reactivemongo.ReactiveMongoPlugin
 import uk.gov.hmrc.domain.SaUtr
-import uk.gov.hmrc.domain.TaxIds.TaxIdWithName
 import uk.gov.hmrc.play.http.HeaderCarrier
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
 import uk.gov.hmrc.ups.connectors.{EntityResolverConnector, PreferencesConnector}
@@ -35,8 +34,6 @@ import scala.concurrent.Future
 
 trait PreferencesProcessor {
 
-  type PulledWorkItemResult = Either[Int, PulledItem]
-
   def formIds: List[String]
 
   def entityResolverConnector: EntityResolverConnector
@@ -48,8 +45,8 @@ trait PreferencesProcessor {
   def run(implicit hc: HeaderCarrier): Future[TotalCounts] =
     Enumerator.generateM(preferencesConnector.pullWorkItem).
       run(
-        Iteratee.foldM(TotalCounts(0, 0)) { (accumulator, pulledWorkItemResult) =>
-          processWorkItem.apply(pulledWorkItemResult).map {
+        Iteratee.foldM(TotalCounts(0, 0)) { (accumulator, item) =>
+          processUpdates(item).map {
             case Succeeded(_) =>
               accumulator.copy(processed = accumulator.processed + 1)
 
@@ -59,14 +56,6 @@ trait PreferencesProcessor {
           }
         }
       )
-
-  def processWorkItem(implicit hc: HeaderCarrier): PulledWorkItemResult => Future[ProcessingResult] = {
-    case Left(statusCodeError) => Future.failed(
-      new RuntimeException(s"Pull from preferences failed with status code = $statusCodeError")
-    )
-
-    case Right(item) => processUpdates(item)
-  }
 
   def processUpdates(item: PulledItem)(implicit hc: HeaderCarrier): Future[ProcessingResult] =
     entityResolverConnector.getTaxIdentifiers(item.entityId).flatMap {
@@ -91,8 +80,6 @@ trait PreferencesProcessor {
             Failed(msg)
         }
     }
-
-  def findUtr(ids: Set[TaxIdWithName]): Option[SaUtr] = ids.collectFirst { case saUtr: SaUtr => saUtr }
 
   def insertAndUpdate(printPreference: PrintPreference, callbackUrl: String, updatedAt: DateTime)
                      (implicit hc: HeaderCarrier): Future[ProcessingResult] =

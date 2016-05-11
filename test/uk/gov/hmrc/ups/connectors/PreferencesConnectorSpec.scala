@@ -39,7 +39,7 @@ class PreferencesConnectorSpec extends UnitSpec with ScalaFutures with MockitoSu
       val pulledItem = PulledItem(randomEntityId, true, DateTimeUtils.now, "someUrl")
       when(connector.httpWrapper.postF[PulledItem](any())).thenReturn(HttpResponse(Status.OK, Some(Json.toJson(pulledItem))))
 
-      connector.pullWorkItem.futureValue should be(Some(Right(pulledItem)))
+      connector.pullWorkItem.futureValue should be(Some(pulledItem))
 
       verify(connector.httpWrapper).postF[PulledItem](any())
     }
@@ -52,11 +52,11 @@ class PreferencesConnectorSpec extends UnitSpec with ScalaFutures with MockitoSu
       verify(connector.httpWrapper).postF[PulledItem](any())
     }
 
-    "handle unexpected response from preferences" in new TestCase {
+    "return none on an unexpected response from preferences" in new TestCase {
       val expectedStatus: Int = Status.NOT_FOUND
       when(connector.httpWrapper.postF[PulledItem](any())).thenReturn(HttpResponse(expectedStatus, None))
 
-      connector.pullWorkItem.futureValue should be (Some(Left(expectedStatus)))
+      connector.pullWorkItem.futureValue shouldBe None
 
       verify(connector.httpWrapper).postF[PulledItem](any())
     }
