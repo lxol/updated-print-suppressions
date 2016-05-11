@@ -12,6 +12,7 @@ import reactivemongo.json.collection.JSONCollection
 import uk.gov.hmrc.mongo.MongoSpecSupport
 import uk.gov.hmrc.play.test.UnitSpec
 import uk.gov.hmrc.ups.repository.UpdatedPrintSuppressions
+import uk.gov.hmrc.ups.repository.MongoCounterRepository
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -58,7 +59,11 @@ abstract class UpdatedPrintSuppressionTestServer(override val databaseName: Stri
 
   override def beforeEach(): Unit = {
     WireMock.reset()
-    await(upsCollection.drop())
+    await(
+      upsCollection.drop().flatMap { _ =>
+        MongoCounterRepository(LocalDate.now.toString()).removeAll()
+      }
+    )
   }
 
 }

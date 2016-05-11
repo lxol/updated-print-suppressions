@@ -75,7 +75,8 @@ class UpdatedPrintSuppressionsRepository(date: LocalDate, repoCreator: String =>
 
   def insert(printPreference: PrintPreference, updatedAt: DateTime)(implicit ec: ExecutionContext): Future[Unit] = {
     val selector = BSONDocument("printPreference.id" -> printPreference.id, "printPreference.idType" -> printPreference.idType)
-    val updatedAtSelector = BSONDocument("updatedAt" -> Json.obj("$lte" -> updatedAt))
+    val updatedAtJson = ReactiveMongoFormats.dateTimeWrite.writes(updatedAt)
+    val updatedAtSelector = BSONDocument("updatedAt" -> Json.obj("$lte" -> updatedAtJson))
 
     collection.find(selector).one[UpdatedPrintSuppressions].
       flatMap {
@@ -95,7 +96,7 @@ class UpdatedPrintSuppressionsRepository(date: LocalDate, repoCreator: String =>
                   "counter" -> counter
                 ),
                 "$set" -> Json.obj(
-                  "updatedAt" -> ReactiveMongoFormats.dateTimeWrite.writes(updatedAt),
+                  "updatedAt" -> updatedAtJson,
                   "printPreference" -> Json.toJson(printPreference)
                 )
               ),
