@@ -1,8 +1,8 @@
-package uk.gov.hmrc.controllers.admin
+package uk.gov.hmrc.ups.controllers.admin
 
 import play.api.libs.json.Json
 import play.api.libs.ws.WS
-import uk.gov.hmrc.controllers.{TestServer, TestSetup}
+import uk.gov.hmrc.ups.controllers.{TestServer, TestSetup}
 import uk.gov.hmrc.play.test.UnitSpec
 import uk.gov.hmrc.ups.model.PrintPreference
 import uk.gov.hmrc.ups.repository.UpdatedPrintSuppressions

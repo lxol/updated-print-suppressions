@@ -19,11 +19,9 @@ package uk.gov.hmrc.ups.repository
 import org.joda.time.{DateTime, LocalDate}
 import play.api.Logger
 import play.api.libs.json.Json
-import reactivemongo.api.commands.bson.BSONFindAndModifyCommand._
 import reactivemongo.api.indexes.{Index, IndexType}
 import reactivemongo.api.{DB, ReadPreference}
 import reactivemongo.bson.{BSONDocument, BSONObjectID}
-import reactivemongo.core.errors.DatabaseException
 import uk.gov.hmrc.mongo.ReactiveRepository
 import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 import uk.gov.hmrc.ups.model.PrintPreference
@@ -39,8 +37,10 @@ case class UpdatedPrintSuppressions(_id: BSONObjectID,
 object UpdatedPrintSuppressions {
   implicit val idf = ReactiveMongoFormats.objectIdFormats
   implicit val pp = PrintPreference.formats
+  implicit val dtf = ReactiveMongoFormats.dateTimeFormats
 
   implicit val formats = Json.format[UpdatedPrintSuppressions]
+
   val datePattern = "yyyyMMdd"
 
   def toString(date: LocalDate) = date.toString(datePattern)
@@ -75,7 +75,8 @@ class UpdatedPrintSuppressionsRepository(date: LocalDate, repoCreator: String =>
 
   def insert(printPreference: PrintPreference, updatedAt: DateTime)(implicit ec: ExecutionContext): Future[Unit] = {
     val selector = BSONDocument("printPreference.id" -> printPreference.id, "printPreference.idType" -> printPreference.idType)
-    val updatedAtSelector = BSONDocument("updatedAt" -> Json.obj("$lte" -> updatedAt))
+    val updatedAtJson = ReactiveMongoFormats.dateTimeWrite.writes(updatedAt)
+    val updatedAtSelector = BSONDocument("updatedAt" -> Json.obj("$lte" -> updatedAtJson))
 
     collection.find(selector).one[UpdatedPrintSuppressions].
       flatMap {
@@ -95,7 +96,7 @@ class UpdatedPrintSuppressionsRepository(date: LocalDate, repoCreator: String =>
                   "counter" -> counter
                 ),
                 "$set" -> Json.obj(
-                  "updatedAt" -> updatedAt,
+                  "updatedAt" -> updatedAtJson,
                   "printPreference" -> Json.toJson(printPreference)
                 )
               ),

@@ -1,4 +1,4 @@
-package uk.gov.hmrc.jobs
+package uk.gov.hmrc.ups.scheduler
 
 import org.joda.time.LocalDate
 import org.scalatest.BeforeAndAfterEach

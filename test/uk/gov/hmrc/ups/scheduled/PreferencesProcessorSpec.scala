@@ -37,15 +37,6 @@ class PreferencesProcessorSpec extends UnitSpec with ScalaFutures with MockitoSu
 
   implicit val hc = HeaderCarrier()
 
-  "processWorkItem" should {
-    "always indicate that the pull failed when presented with a non-200 level status code" in new TestCase {
-      preferencesProcessor.processWorkItem.
-        apply(Left(400)).futureValue shouldBe Failed(
-          "Pull from preferences failed with status code = 400", None
-      )
-    }
-  }
-
   "Process outstanding updates" should {
     "succeed when an updated preference is resolved and stored" in new TestCase {
       when(mockEntityResolverConnector.getTaxIdentifiers(pulledItem.entityId)).
@@ -131,7 +122,7 @@ class PreferencesProcessorSpec extends UnitSpec with ScalaFutures with MockitoSu
         thenReturn(Future.successful(BAD_REQUEST))
 
       preferencesProcessor.insertAndUpdate(printPreference, callbackUrl, DateTime.now()).
-        futureValue shouldBe Failed(s"failed to update preference: $callbackUrl")
+        futureValue shouldBe Failed(s"failed to update preference: url: $callbackUrl status: ${BAD_REQUEST}")
 
       verify(mockRepo).insert(argEq(printPreference), any())(any())
       verify(mockPreferencesConnector).changeStatus(argEq(callbackUrl), argEq(workitem.Succeeded))(any())

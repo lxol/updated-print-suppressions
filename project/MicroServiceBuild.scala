@@ -62,6 +62,8 @@ private object AppDependencies {
         "org.scalatest" %% "scalatest" % "2.2.6",
         "org.pegdown" % "pegdown" % "1.6.0",
         "com.typesafe.play" %% "play-test" % PlayVersion.current,
+        "com.github.tomakehurst" % "wiremock" % "1.56",
+        "org.scalatestplus" %% "play" % "1.2.0",
         "uk.gov.hmrc" %% "reactivemongo-test" % "1.6.0"
       ).map (_ % scope)
     }.test
@@ -77,8 +79,9 @@ private object AppDependencies {
         "org.scalatest" %% "scalatest" % "2.2.6",
         "org.pegdown" % "pegdown" % "1.6.0",
         "com.typesafe.play" %% "play-test" % PlayVersion.current,
-        "uk.gov.hmrc" %% "reactivemongo-test" % "1.6.0",
-        "uk.gov.hmrc" %% "auth-test" % "2.2.0"
+        "com.github.tomakehurst" % "wiremock" % "1.56",
+        "org.scalatestplus" %% "play" % "1.2.0",
+        "uk.gov.hmrc" %% "reactivemongo-test" % "1.6.0"
       ).map(_  % scope)
     }.test
   }

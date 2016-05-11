@@ -17,9 +17,9 @@
 package uk.gov.hmrc.ups.connectors
 
 import org.joda.time.{DateTime, Duration}
-import play.api.Play
 import play.api.http.Status._
 import play.api.libs.json.{JsValue, Json}
+import play.api.{Logger, Play}
 import uk.gov.hmrc.play.config.ServicesConfig
 import uk.gov.hmrc.play.http._
 import uk.gov.hmrc.time.DateTimeUtils
@@ -30,14 +30,14 @@ import uk.gov.hmrc.workitem.ProcessingStatus
 import scala.concurrent.Future
 
 trait PreferencesConnector {
-  type PulledWorkItem = Option[Int Either PulledItem]
-
-  implicit val optionalPullItemReads = new HttpReads[PulledWorkItem] {
+  implicit val optionalPullItemReads = new HttpReads[Option[PulledItem]] {
     override def read(method: String, url: String, response: HttpResponse) =
       response.status match {
         case NO_CONTENT => None
-        case OK => Some(Right(response.json.as[PulledItem]))
-        case _ => Some(Left(response.status))
+        case OK => Some(response.json.as[PulledItem])
+        case unexpectedStatus =>
+          Logger.error(s"Call to $url failed with status $unexpectedStatus")
+          None
       }
   }
 
@@ -45,8 +45,8 @@ trait PreferencesConnector {
     def read(method: String, url: String, response: HttpResponse): Int = response.status
   }
 
-  def pullWorkItem(implicit hc: HeaderCarrier): Future[PulledWorkItem] =
-    http.POST[WorkItemRequest, PulledWorkItem](
+  def pullWorkItem(implicit hc: HeaderCarrier): Future[Option[PulledItem]] =
+    http.POST[WorkItemRequest, Option[PulledItem]](
       s"$serviceUrl/preferences/updated-print-suppression/pull-work-item",
       workItemRequest
     )

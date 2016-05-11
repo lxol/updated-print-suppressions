@@ -1,4 +1,4 @@
-package uk.gov.hmrc.controllers
+package uk.gov.hmrc.ups.controllers
 
 import org.joda.time.LocalDate
 import org.scalatest.concurrent.ScalaFutures
