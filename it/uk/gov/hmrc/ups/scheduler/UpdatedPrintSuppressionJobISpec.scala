@@ -1,14 +1,15 @@
 package uk.gov.hmrc.ups.scheduler
 
+import com.github.tomakehurst.wiremock.client.WireMock._
 import play.api.libs.json.Json
 import play.api.libs.json.Json._
-import uk.gov.hmrc.domain.SaUtr
 import uk.gov.hmrc.time.DateTimeUtils
 import uk.gov.hmrc.ups.config.Jobs
 import uk.gov.hmrc.ups.ispec.UpdatedPrintSuppressionTestServer
 import uk.gov.hmrc.ups.model.PrintPreference
 import uk.gov.hmrc.ups.repository.UpdatedPrintSuppressions
 import uk.gov.hmrc.ups.utils.Generate
+import uk.gov.hmrc.workitem.{InProgress, PermanentlyFailed, Succeeded}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -22,9 +23,12 @@ class UpdatedPrintSuppressionJobISpec extends UpdatedPrintSuppressionTestServer 
       val entityId = Generate.entityId
       val utr = Generate.utr
       val updatedAt = DateTimeUtils.now
+      val expectedStatusOnPreference = Succeeded
 
-      stubPullUpdatedPrintSuppression(entityId, updatedAt)
+      stubFirstPullUpdatedPrintSuppression(entityId, updatedAt)
       stubGetEntity(entityId, utr)
+      stubSetStatus(entityId, expectedStatusOnPreference)
+      stubPullUpdatedPrintSuppressionWithNoResponseBody(expectedStatusOnPreference)
 
       await(Jobs.UpdatedPrintSuppressionJob.executeInMutex)
 
@@ -38,19 +42,50 @@ class UpdatedPrintSuppressionJobISpec extends UpdatedPrintSuppressionTestServer 
       val entityId = Generate.entityId
       val nino = Generate.nino
       val updatedAt = DateTimeUtils.now
+      val expectedStatusOnPreference = Succeeded
 
-      stubPullUpdatedPrintSuppression(entityId, updatedAt)
+      stubFirstPullUpdatedPrintSuppression(entityId, updatedAt)
       stubGetEntity(entityId, nino)
+      stubSetStatus(entityId, expectedStatusOnPreference)
+      stubPullUpdatedPrintSuppressionWithNoResponseBody(expectedStatusOnPreference)
 
       await(Jobs.UpdatedPrintSuppressionJob.executeInMutex)
 
-      await(upsCollection.find(
-        Json.obj("printPreference.id" -> nino.value)
-      ).one[UpdatedPrintSuppressions]) shouldBe None
+      await(upsCollection.count()) shouldBe 0
     }
 
     "process and permanently fail orphan preferences" in {
       pending
+//      val entityId = Generate.entityId
+//      stubPullUpdatedPrintSuppression(entityId, DateTimeUtils.now, PermanentlyFailed)
+//      stubGetEntityWithStatus(entityId, 404)
+//
+//      await(Jobs.UpdatedPrintSuppressionJob.executeInMutex)
+//
+//      await(upsCollection.count()) shouldBe 0
+    }
+
+    "terminate in case of errors pulling from preferences" in {
+      stubFor(
+        post(urlMatching("/preferences/updated-print-suppression/pull-work-item"))
+          .inScenario("ALL")
+          .willReturn(aResponse().withStatus(500))
+      )
+
+      await(Jobs.UpdatedPrintSuppressionJob.executeInMutex)
+    }
+
+    "continue in case of errors setting the state on preferences" in {
+      val entityId = Generate.entityId
+      val utr = Generate.utr
+      val updatedAt = DateTimeUtils.now
+
+      stubFirstPullUpdatedPrintSuppression(entityId, updatedAt)
+      stubGetEntity(entityId, utr)
+      stubSetStatusToFail(entityId)
+      stubPullUpdatedPrintSuppressionWithNoResponseBody(InProgress)
+
+      await(Jobs.UpdatedPrintSuppressionJob.executeInMutex)
     }
   }
 }

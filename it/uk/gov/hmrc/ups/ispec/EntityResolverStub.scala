@@ -21,4 +21,11 @@ trait EntityResolverStub {
                 stripMargin))
     )
   }
+
+  def stubGetEntityWithStatus(entityId: EntityId, status: Int) = {
+    stubFor(
+      get(urlMatching(s"/entity-resolver/${entityId.value}"))
+        .willReturn(aResponse().withStatus(status))
+    )
+  }
 }

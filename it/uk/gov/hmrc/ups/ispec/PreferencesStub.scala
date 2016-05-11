@@ -5,10 +5,11 @@ import com.github.tomakehurst.wiremock.stubbing.Scenario
 import org.joda.time.DateTime
 import uk.gov.hmrc.play.controllers.RestFormats
 import uk.gov.hmrc.ups.model.EntityId
+import uk.gov.hmrc.workitem.{InProgress, ProcessingStatus}
 
 trait PreferencesStub {
 
-  def stubPullUpdatedPrintSuppression(entityId: EntityId, updatedAt: DateTime) = {
+  def stubFirstPullUpdatedPrintSuppression(entityId: EntityId, updatedAt: DateTime) = {
     stubFor(
       post(urlMatching("/preferences/updated-print-suppression/pull-work-item"))
         .inScenario("ALL")
@@ -26,21 +27,37 @@ trait PreferencesStub {
                  |}
                  | """.
                 stripMargin))
+        .willSetStateTo(InProgress.name)
     )
+  }
 
-
-    stubFor(
-      post(urlMatching(s"/preferences/updated-print-suppression/${entityId.value}/status"))
-        .inScenario("ALL")
-        .willReturn(aResponse().withStatus(200))
-        .willSetStateTo("SUCCEEDED")
-    )
-
+  def stubPullUpdatedPrintSuppressionWithNoResponseBody(expectedStatus: ProcessingStatus, expectedHttpStatus: Int = 204) =
     stubFor(
       post(urlMatching("/preferences/updated-print-suppression/pull-work-item"))
         .inScenario("ALL")
-        .whenScenarioStateIs("SUCCEEDED")
-        .willReturn(aResponse().withStatus(204))
+        .whenScenarioStateIs(expectedStatus.name)
+        .willReturn(aResponse().withStatus(expectedHttpStatus))
     )
-  }
+
+  def stubSetStatus(entityId: EntityId, expectedStatus: ProcessingStatus) =
+    stubFor(
+      post(urlMatching(s"/preferences/updated-print-suppression/${entityId.value}/status"))
+        .inScenario("ALL")
+        .whenScenarioStateIs(InProgress.name)
+        .withRequestBody(matching(
+          s"""
+             |"status":"${expectedStatus.name}"
+          """.stripMargin))
+        .willReturn(aResponse().withStatus(200))
+        .willSetStateTo(expectedStatus.name)
+    )
+
+  def stubSetStatusToFail(entityId: EntityId, expectedHttpStatus: Int = 500) =
+    stubFor(
+      post(urlMatching(s"/preferences/updated-print-suppression/${entityId.value}/status"))
+        .willReturn(aResponse().withStatus(expectedHttpStatus))
+    )
+
+
+
 }

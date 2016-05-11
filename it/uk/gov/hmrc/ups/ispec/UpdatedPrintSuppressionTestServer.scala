@@ -11,8 +11,7 @@ import play.api.test.FakeApplication
 import reactivemongo.json.collection.JSONCollection
 import uk.gov.hmrc.mongo.MongoSpecSupport
 import uk.gov.hmrc.play.test.UnitSpec
-import uk.gov.hmrc.ups.repository.UpdatedPrintSuppressions
-import uk.gov.hmrc.ups.repository.MongoCounterRepository
+import uk.gov.hmrc.ups.repository.{MongoCounterRepository, UpdatedPrintSuppressions}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -43,6 +42,7 @@ abstract class UpdatedPrintSuppressionTestServer(override val databaseName: Stri
     "microservice.services.preferences.port" -> stubPort,
     "microservice.services.entity-resolver.host" -> stubHost,
     "microservice.services.entity-resolver.port" -> stubPort,
+    "Test.scheduling.updatedPrintSuppressions.initialDelay" -> "10 hours",
     "mongodb.uri" -> s"mongodb://localhost:27017/$databaseName"
   ))
 

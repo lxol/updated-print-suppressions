@@ -61,8 +61,8 @@ trait PreferencesProcessor {
       )
 
   def processWorkItem(implicit hc: HeaderCarrier): PulledWorkItemResult => Future[ProcessingResult] = {
-    case Left(statusCodeError) => Future.successful(
-      Failed(s"Pull from preferences failed with status code = $statusCodeError")
+    case Left(statusCodeError) => Future.failed(
+      new RuntimeException(s"Pull from preferences failed with status code = $statusCodeError")
     )
 
     case Right(item) => processUpdates(item)
@@ -110,8 +110,8 @@ trait PreferencesProcessor {
         case status @ (OK | CONFLICT) =>
           Succeeded(s"updated preference: $callbackUrl")
 
-        case _ =>
-          Failed(s"failed to update preference: $callbackUrl")
+        case status =>
+          Failed(s"failed to update preference: url: $callbackUrl status: $status")
       }
 
   def createPrintPreference(utr: SaUtr, item: PulledItem) =
