@@ -20,7 +20,7 @@ class UpdatedPrintSuppressionJobISpec extends UpdatedPrintSuppressionTestServer 
 
     "process and save a preference associated with a valid utr" in {
       val entityId = Generate.entityId
-      val utr: SaUtr = Generate.utr
+      val utr = Generate.utr
       val updatedAt = DateTimeUtils.now
 
       stubPullUpdatedPrintSuppression(entityId, updatedAt)
@@ -28,13 +28,29 @@ class UpdatedPrintSuppressionJobISpec extends UpdatedPrintSuppressionTestServer 
 
       await(Jobs.UpdatedPrintSuppressionJob.executeInMutex)
 
-      val ups = upsCollection.find(Json.obj("printPreference.id" -> utr.value)).one[UpdatedPrintSuppressions].futureValue.get
+      val ups = await(upsCollection.find(Json.obj("printPreference.id" -> utr.value)).one[UpdatedPrintSuppressions]).get
 
-      ups shouldBe UpdatedPrintSuppressions(ups._id, 1, PrintPreference(utr.value, utr.name, List("ABC", "DEF")), updatedAt)
+      ups shouldBe UpdatedPrintSuppressions(ups._id, 0, PrintPreference(utr.value, utr.name, List("ABC", "DEF")), updatedAt)
 
     }
 
-    "process and skip a preference associated with a valid nino" ignore {}
-    "process and permanently fail orphan preferences" ignore {}
+    "process and skip a preference associated with a valid nino" in {
+      val entityId = Generate.entityId
+      val nino = Generate.nino
+      val updatedAt = DateTimeUtils.now
+
+      stubPullUpdatedPrintSuppression(entityId, updatedAt)
+      stubGetEntity(entityId, nino)
+
+      await(Jobs.UpdatedPrintSuppressionJob.executeInMutex)
+
+      await(upsCollection.find(
+        Json.obj("printPreference.id" -> nino.value)
+      ).one[UpdatedPrintSuppressions]) shouldBe None
+    }
+
+    "process and permanently fail orphan preferences" in {
+      pending
+    }
   }
 }

@@ -37,8 +37,10 @@ case class UpdatedPrintSuppressions(_id: BSONObjectID,
 object UpdatedPrintSuppressions {
   implicit val idf = ReactiveMongoFormats.objectIdFormats
   implicit val pp = PrintPreference.formats
+  implicit val dtf = ReactiveMongoFormats.dateTimeFormats
 
   implicit val formats = Json.format[UpdatedPrintSuppressions]
+
   val datePattern = "yyyyMMdd"
 
   def toString(date: LocalDate) = date.toString(datePattern)
@@ -93,7 +95,7 @@ class UpdatedPrintSuppressionsRepository(date: LocalDate, repoCreator: String =>
                   "counter" -> counter
                 ),
                 "$set" -> Json.obj(
-                  "updatedAt" -> updatedAt,
+                  "updatedAt" -> ReactiveMongoFormats.dateTimeWrite.writes(updatedAt),
                   "printPreference" -> Json.toJson(printPreference)
                 )
               ),
