@@ -27,7 +27,7 @@ class UpdatedPrintSuppressionJobISpec extends UpdatedPrintSuppressionTestServer 
 
       stubFirstPullUpdatedPrintSuppression(entityId, updatedAt)
       stubGetEntity(entityId, utr)
-      stubSetStatus(entityId, expectedStatusOnPreference)
+      stubSetStatus(entityId, expectedStatusOnPreference, 200)
       stubPullUpdatedPrintSuppressionWithNoResponseBody(expectedStatusOnPreference)
 
       await(Jobs.UpdatedPrintSuppressionJob.executeInMutex)
@@ -46,7 +46,7 @@ class UpdatedPrintSuppressionJobISpec extends UpdatedPrintSuppressionTestServer 
 
       stubFirstPullUpdatedPrintSuppression(entityId, updatedAt)
       stubGetEntity(entityId, nino)
-      stubSetStatus(entityId, expectedStatusOnPreference)
+      stubSetStatus(entityId, expectedStatusOnPreference, 200)
       stubPullUpdatedPrintSuppressionWithNoResponseBody(expectedStatusOnPreference)
 
       await(Jobs.UpdatedPrintSuppressionJob.executeInMutex)
@@ -55,14 +55,18 @@ class UpdatedPrintSuppressionJobISpec extends UpdatedPrintSuppressionTestServer 
     }
 
     "process and permanently fail orphan preferences" in {
-      pending
-//      val entityId = Generate.entityId
-//      stubPullUpdatedPrintSuppression(entityId, DateTimeUtils.now, PermanentlyFailed)
-//      stubGetEntityWithStatus(entityId, 404)
-//
-//      await(Jobs.UpdatedPrintSuppressionJob.executeInMutex)
-//
-//      await(upsCollection.count()) shouldBe 0
+      val entityId = Generate.entityId
+      val updatedAt = DateTimeUtils.now
+      val expectedStatusOnPreference = PermanentlyFailed
+
+      stubFirstPullUpdatedPrintSuppression(entityId, updatedAt)
+      stubGetEntityWithStatus(entityId, 404)
+      stubSetStatus(entityId, expectedStatusOnPreference, 200)
+      stubPullUpdatedPrintSuppressionWithNoResponseBody(expectedStatusOnPreference)
+
+      await(Jobs.UpdatedPrintSuppressionJob.executeInMutex)
+
+      await(upsCollection.count()) shouldBe 0
     }
 
     "terminate in case of errors pulling from preferences" in {
@@ -72,20 +76,25 @@ class UpdatedPrintSuppressionJobISpec extends UpdatedPrintSuppressionTestServer 
           .willReturn(aResponse().withStatus(500))
       )
 
-      await(Jobs.UpdatedPrintSuppressionJob.executeInMutex)
+      intercept[RuntimeException] {
+        await(Jobs.UpdatedPrintSuppressionJob.executeInMutex)
+      }
     }
 
     "continue in case of errors setting the state on preferences" in {
       val entityId = Generate.entityId
       val utr = Generate.utr
       val updatedAt = DateTimeUtils.now
+      val expectedStatusOnPreference = Succeeded
 
       stubFirstPullUpdatedPrintSuppression(entityId, updatedAt)
       stubGetEntity(entityId, utr)
-      stubSetStatusToFail(entityId)
-      stubPullUpdatedPrintSuppressionWithNoResponseBody(InProgress)
+      stubSetStatus(entityId, expectedStatusOnPreference, 500)
+      stubPullUpdatedPrintSuppressionWithNoResponseBody(expectedStatusOnPreference)
 
       await(Jobs.UpdatedPrintSuppressionJob.executeInMutex)
+
+      await(upsCollection.count()) shouldBe 1
     }
   }
 }
