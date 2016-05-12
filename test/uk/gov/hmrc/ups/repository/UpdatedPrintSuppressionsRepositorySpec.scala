@@ -19,14 +19,14 @@ package uk.gov.hmrc.ups.repository
 import org.joda.time.{DateTime, LocalDate}
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
-import play.api.libs.json.Json
 import uk.gov.hmrc.mongo.MongoSpecSupport
 import uk.gov.hmrc.play.http.HeaderCarrier
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
 import uk.gov.hmrc.play.test.UnitSpec
+import uk.gov.hmrc.time.DateTimeUtils
 import uk.gov.hmrc.ups.model.PrintPreference
 
-import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.concurrent.{ExecutionContext, Future}
 
 class UpdatedPrintSuppressionsRepositorySpec extends UnitSpec with MongoSpecSupport with BeforeAndAfterEach with ScalaFutures with IntegrationPatience {
   implicit val hc = HeaderCarrier()
@@ -47,11 +47,11 @@ class UpdatedPrintSuppressionsRepositorySpec extends UnitSpec with MongoSpecSupp
     await(MongoCounterRepository(TODAY.toString("yyyyMMdd")).removeAll())
   }
 
-  def toCounterAndPreference(ups: UpdatedPrintSuppressions): (Int, PrintPreference) = (ups.counter, ups.printPreference)
+  def toCounterAndPreference(ups: UpdatedPrintSuppressions): (Int, PrintPreference, DateTime) = (ups.counter, ups.printPreference, ups.updatedAt)
 
   "UpdatedPrintSuppressionsRepository" should {
 
-    val now = DateTime.now()
+    val now = DateTimeUtils.now
 
     "increment the counter and save the updated print suppression" in {
 
@@ -64,7 +64,7 @@ class UpdatedPrintSuppressionsRepositorySpec extends UnitSpec with MongoSpecSupp
       await(repository.insert(ppTwo, now))
 
       val all = repository.findAll()
-      await(all).map { toCounterAndPreference } shouldBe List((0, ppOne), (1, ppTwo))
+      await(all).map { toCounterAndPreference } shouldBe List((0, ppOne, now), (1, ppTwo, now))
     }
 
     "find and return all records within a range" in {
@@ -87,7 +87,7 @@ class UpdatedPrintSuppressionsRepositorySpec extends UnitSpec with MongoSpecSupp
       await(repository.insert(preferenceWithSameId, now.plusMillis(1)))
 
       val all = repository.findAll()
-      await(all).map { toCounterAndPreference } shouldBe List((0, preferenceWithSameId))
+      await(all).map { toCounterAndPreference } shouldBe List((0, preferenceWithSameId, now.plusMillis(1)))
     }
 
     "duplicate keys due to race conditions are recoverable" in {
