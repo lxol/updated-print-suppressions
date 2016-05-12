@@ -83,7 +83,9 @@ class UpdatedPrintSuppressionsRepository(date: LocalDate, repoCreator: String =>
         case Some(ups) =>
           collection.update(
             selector = BSONDocument("_id" -> ups._id) ++ updatedAtSelector,
-            update = UpdatedPrintSuppressions.formats.writes(ups.copy(printPreference = printPreference))
+            update = UpdatedPrintSuppressions.formats.writes(
+              ups.copy(printPreference = printPreference, updatedAt = updatedAt)
+            )
           ).map { _ => () }
 
         case None =>
