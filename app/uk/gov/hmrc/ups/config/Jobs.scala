@@ -71,13 +71,13 @@ object Jobs {
 
   object UpdatedPrintSuppressionJob extends ExclusiveScheduledJob with DurationFromConfig {
 
-    def executeInMutex(implicit ec: ExecutionContext): Future[UpdatedPrintSuppressionJob.Result] = {
-      PreferencesProcessor.run(HeaderCarrier()).map { totals =>
-        Result(
-          s"UpdatedPrintSuppressions: ${totals.processed} items processed with ${totals.failed} failures"
-        )
-      }
-    }
+    def executeInMutex(implicit ec: ExecutionContext): Future[UpdatedPrintSuppressionJob.Result] =
+      PreferencesProcessor.run(HeaderCarrier()).
+        map { totals =>
+          Result(
+            s"UpdatedPrintSuppressions: ${totals.processed} items processed with ${totals.failed} failures"
+          )
+        }
 
     override val name: String = "updatedPrintSuppressions"
   }

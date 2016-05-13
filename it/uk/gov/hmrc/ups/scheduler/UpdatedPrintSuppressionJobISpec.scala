@@ -1,8 +1,12 @@
 package uk.gov.hmrc.ups.scheduler
 
 import com.github.tomakehurst.wiremock.client.WireMock._
+import com.github.tomakehurst.wiremock.http.Fault
+import com.github.tomakehurst.wiremock.stubbing.Scenario
+
 import play.api.libs.json.Json
 import play.api.libs.json.Json._
+
 import uk.gov.hmrc.time.DateTimeUtils
 import uk.gov.hmrc.ups.config.Jobs
 import uk.gov.hmrc.ups.ispec.UpdatedPrintSuppressionTestServer
@@ -75,6 +79,31 @@ class UpdatedPrintSuppressionJobISpec extends UpdatedPrintSuppressionTestServer 
           .inScenario("ALL")
           .willReturn(aResponse().withStatus(500))
       )
+
+      await(Jobs.UpdatedPrintSuppressionJob.executeInMutex)
+
+      await(upsCollection.count()) shouldBe 0
+    }
+
+    "terminate gracefully when an illegal state propagates from pulling preferences" in {
+      stubFor(
+        post(urlMatching("/preferences/updated-print-suppression/pull-work-item"))
+          .inScenario("ALL")
+          .whenScenarioStateIs(Scenario.STARTED)
+            .willReturn(aResponse().withFault(Fault.EMPTY_RESPONSE))
+      )
+
+      await(Jobs.UpdatedPrintSuppressionJob.executeInMutex)
+
+      await(upsCollection.count()) shouldBe 0
+    }
+
+    "terminate gracefully when an illegal state propagates from calling the entity resolver" in {
+      val entityId = Generate.entityId
+      val updatedAt = DateTimeUtils.now
+
+      stubFirstPullUpdatedPrintSuppression(entityId, updatedAt)
+      stubExceptionOnGetEntity(entityId)
 
       await(Jobs.UpdatedPrintSuppressionJob.executeInMutex)
 

@@ -42,20 +42,31 @@ trait PreferencesProcessor {
 
   def repo: UpdatedPrintSuppressionsRepository
 
-  def run(implicit hc: HeaderCarrier): Future[TotalCounts] =
+  def run(implicit hc: HeaderCarrier): Future[TotalCounts] = {
+    def incrementOnFailure(totals: TotalCounts): TotalCounts =
+      totals.copy(
+        processed = totals.processed + 1,
+        failed = totals.failed + 1
+      )
+
     Enumerator.generateM(preferencesConnector.pullWorkItem).
       run(
         Iteratee.foldM(TotalCounts(0, 0)) { (accumulator, item) =>
           processUpdates(item).map {
-            case Succeeded(_) =>
-              accumulator.copy(processed = accumulator.processed + 1)
+              case Succeeded(_) =>
+                accumulator.copy(processed = accumulator.processed + 1)
 
-            case Failed(msg, ex) =>
-              ex.fold(Logger.warn(msg)) { Logger.warn(msg, _) }
-              accumulator.copy(failed = accumulator.failed + 1)
-          }
+              case Failed(msg, ex) =>
+                ex.fold(Logger.warn(msg)) { Logger.warn(msg, _) }
+                incrementOnFailure(accumulator)
+            }.
+            recoverWith { case ex =>
+              Logger.error(s"terminating early due to unexpected failure", ex)
+              Future.failed(EarlyTermination(incrementOnFailure(accumulator)))
+            }
         }
-      )
+      ).recover { case EarlyTermination(totals) => totals}
+  }
 
   def processUpdates(item: PulledItem)(implicit hc: HeaderCarrier): Future[ProcessingResult] =
     entityResolverConnector.getTaxIdentifiers(item.entityId).flatMap {
@@ -129,4 +140,6 @@ object PreferencesProcessor extends PreferencesProcessor {
   def entityResolverConnector: EntityResolverConnector = EntityResolverConnector
 }
 
-final case class TotalCounts(processed: Int, failed: Int)
+sealed trait UpsResult extends Product with Serializable
+final case class TotalCounts(processed: Int, failed: Int) extends UpsResult
+final case class EarlyTermination(totals: TotalCounts) extends RuntimeException with UpsResult
