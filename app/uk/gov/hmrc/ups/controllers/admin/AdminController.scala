@@ -20,11 +20,13 @@ package uk.gov.hmrc.ups.controllers.admin
 import org.joda.time.LocalDate
 import play.api.mvc.Action
 import play.modules.reactivemongo.ReactiveMongoPlugin
-import uk.gov.hmrc.play.microservice.controller.BaseController
-import uk.gov.hmrc.ups.model.PrintPreference
+import uk.gov.hmrc.play.http.HeaderCarrier
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
+import uk.gov.hmrc.play.microservice.controller.BaseController
 import uk.gov.hmrc.time.DateTimeUtils
+import uk.gov.hmrc.ups.model.PrintPreference
 import uk.gov.hmrc.ups.repository.{MongoCounterRepository, UpdatedPrintSuppressionsRepository}
+import uk.gov.hmrc.ups.scheduled.PreferencesProcessor
 
 class AdminController extends BaseController {
 
@@ -46,6 +48,15 @@ class AdminController extends BaseController {
           insert(body, DateTimeUtils.now).
           map { _ => Ok("Record inserted") }.
           recover { case _ => InternalServerError("Failed to insert the record") }
+      }
+  }
+
+  def processPrintSuppressions() = Action.async {
+    implicit request =>
+      PreferencesProcessor.run(HeaderCarrier()).map { totals =>
+        Ok(
+          s"UpdatedPrintSuppressions: ${totals.processed} item(s) processed with ${totals.failed} failure(s)"
+        )
       }
   }
 }
