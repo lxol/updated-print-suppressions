@@ -31,6 +31,11 @@ trait MicroService {
       parallelExecution in Test := false,
       fork in Test := false,
       retrieveManaged := true,
+      scalacOptions ++= List(
+        "-feature",
+        "-Xfatal-warnings",
+        "-Xlint"
+      ),
       evictionWarningOptions in update := EvictionWarningOptions.default.withWarnScalaVersionEviction(false)
     )
     .configs(IntegrationTest)

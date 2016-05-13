@@ -27,6 +27,8 @@ import uk.gov.hmrc.ups.config.WSHttp
 import uk.gov.hmrc.ups.model.{Filters, PulledItem, WorkItemRequest}
 import uk.gov.hmrc.workitem.ProcessingStatus
 
+import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
+
 import scala.concurrent.Future
 
 trait PreferencesConnector {
@@ -49,7 +51,10 @@ trait PreferencesConnector {
     http.POST[WorkItemRequest, Option[PulledItem]](
       s"$serviceUrl/preferences/updated-print-suppression/pull-work-item",
       workItemRequest
-    )
+    ).recover { case ex =>
+      Logger.error(s"Call to $serviceUrl/preferences/updated-print-suppression/pull-work-item failed unexpectedly", ex)
+      None
+    }
 
   def changeStatus(callbackUrl: String, status: ProcessingStatus)(implicit hc: HeaderCarrier) =
     http.POST[JsValue, Int](s"$serviceUrl$callbackUrl", Json.obj("status" -> status.name))
@@ -78,6 +83,5 @@ object PreferencesConnector extends PreferencesConnector with ServicesConfig {
   lazy val serviceUrl: String = baseUrl("preferences")
 
   lazy val http = WSHttp
-
 
 }

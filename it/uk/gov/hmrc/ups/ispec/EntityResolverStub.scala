@@ -1,6 +1,8 @@
 package uk.gov.hmrc.ups.ispec
 
 import com.github.tomakehurst.wiremock.client.WireMock._
+import com.github.tomakehurst.wiremock.http.Fault
+
 import uk.gov.hmrc.domain.TaxIds._
 import uk.gov.hmrc.ups.model.EntityId
 
@@ -28,4 +30,10 @@ trait EntityResolverStub {
         .willReturn(aResponse().withStatus(status))
     )
   }
+
+  def stubExceptionOnGetEntity(entityId: EntityId) =
+    stubFor(
+      get(urlMatching(s"/entity-resolver/${entityId.value}")).
+        willReturn(aResponse().withFault(Fault.EMPTY_RESPONSE))
+    )
 }
