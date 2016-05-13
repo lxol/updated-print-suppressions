@@ -33,7 +33,6 @@ trait MicroService {
       retrieveManaged := true,
       scalacOptions ++= List(
         "-feature",
-        "-Xfatal-warnings",
         "-Xlint"
       ),
       evictionWarningOptions in update := EvictionWarningOptions.default.withWarnScalaVersionEviction(false)
