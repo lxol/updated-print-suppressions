@@ -22,6 +22,7 @@ import play.api.libs.json.Json
 import reactivemongo.api.indexes.{Index, IndexType}
 import reactivemongo.api.{DB, ReadPreference}
 import reactivemongo.bson.{BSONDocument, BSONObjectID}
+import reactivemongo.json.collection.JSONCollection
 import uk.gov.hmrc.mongo.ReactiveRepository
 import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 import uk.gov.hmrc.ups.model.PrintPreference
@@ -48,9 +49,9 @@ object UpdatedPrintSuppressions {
   def repoNameTemplate(date: LocalDate) = s"updated_print_suppressions_${toString(date)}"
 }
 
-class UpdatedPrintSuppressionsRepository(date: LocalDate, repoCreator: String => CounterRepository)
+class UpdatedPrintSuppressionsRepository(date: LocalDate, repoCreator: String => CounterRepository, mc: Option[JSONCollection] = None)
                                         (implicit mongo: () => DB, ec: ExecutionContext)
-  extends ReactiveRepository[UpdatedPrintSuppressions, BSONObjectID](UpdatedPrintSuppressions.repoNameTemplate(date), mongo, UpdatedPrintSuppressions.formats) {
+  extends ReactiveRepository[UpdatedPrintSuppressions, BSONObjectID](UpdatedPrintSuppressions.repoNameTemplate(date), mongo, UpdatedPrintSuppressions.formats, mc = mc) {
 
   val counterRepo = repoCreator(UpdatedPrintSuppressions.toString(date))
 

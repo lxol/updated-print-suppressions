@@ -21,12 +21,14 @@ import play.api.http.Status._
 import play.api.libs.iteratee.{Enumerator, Iteratee}
 import play.api.{Logger, Play}
 import play.modules.reactivemongo.ReactiveMongoPlugin
+import reactivemongo.api.collections.bson.BSONCollection
+import reactivemongo.json.collection.JSONCollection
 import uk.gov.hmrc.domain.SaUtr
 import uk.gov.hmrc.play.http.HeaderCarrier
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
 import uk.gov.hmrc.ups.connectors.{EntityResolverConnector, PreferencesConnector}
 import uk.gov.hmrc.ups.model.{PrintPreference, PulledItem}
-import uk.gov.hmrc.ups.repository.{MongoCounterRepository, UpdatedPrintSuppressionsRepository}
+import uk.gov.hmrc.ups.repository.{UpdatedPrintSuppressions, MongoCounterRepository, UpdatedPrintSuppressionsRepository}
 import uk.gov.hmrc.workitem
 import uk.gov.hmrc.workitem.ProcessingStatus
 
@@ -122,6 +124,8 @@ object PreferencesProcessor extends PreferencesProcessor {
     ReactiveMongoPlugin.mongoConnector.db
   }
 
+  val connectionOnce = connection()
+
   import scala.concurrent.ExecutionContext.Implicits.global
 
   lazy val formIds: List[String] =
@@ -131,11 +135,16 @@ object PreferencesProcessor extends PreferencesProcessor {
 
   def preferencesConnector: PreferencesConnector = PreferencesConnector
 
-  def repo: UpdatedPrintSuppressionsRepository =
+
+  def repo: UpdatedPrintSuppressionsRepository = {
+    val collection: JSONCollection = connectionOnce.collection[JSONCollection](UpdatedPrintSuppressions.repoNameTemplate( LocalDate.now()))
+
     new UpdatedPrintSuppressionsRepository(
       LocalDate.now(),
-      counterName => MongoCounterRepository(counterName)
+      counterName => MongoCounterRepository(counterName),
+      Some(collection)
     )
+  }
 
   def entityResolverConnector: EntityResolverConnector = EntityResolverConnector
 }
