@@ -17,8 +17,8 @@
 package uk.gov.hmrc.ups.scheduled
 
 import org.joda.time.DateTime
-import org.mockito.Mockito._
 import org.mockito.Matchers.{eq => argEq, _}
+import org.mockito.Mockito._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.mock.MockitoSugar
 import play.api.http.Status._
@@ -27,11 +27,11 @@ import uk.gov.hmrc.play.test.UnitSpec
 import uk.gov.hmrc.time.DateTimeUtils
 import uk.gov.hmrc.ups.connectors.{EntityResolverConnector, PreferencesConnector}
 import uk.gov.hmrc.ups.model.{Entity, PrintPreference, PulledItem}
-import uk.gov.hmrc.ups.repository.UpdatedPrintSuppressionsRepository
+import uk.gov.hmrc.ups.repository.{NoticeOfCodingSuppressionRepository, UpdatedPrintSuppressionsRepository}
 import uk.gov.hmrc.ups.utils.Generate
+import uk.gov.hmrc.workitem
 
 import scala.concurrent.Future
-import uk.gov.hmrc.workitem
 
 class PreferencesProcessorSpec extends UnitSpec with ScalaFutures with MockitoSugar {
 
@@ -113,7 +113,25 @@ class PreferencesProcessorSpec extends UnitSpec with ScalaFutures with MockitoSu
     }
   }
 
-  "insertAndUpdate" should {
+//  "Process outstanding updates with NOC" should {
+//    "succeed when an updated preference is resolved and stored" in new TestCase {
+//      when(mockEntityResolverConnector.getTaxIdentifiers(pulledItem.entityId)).
+//        thenReturn(Future.successful(Right(Some(entityWithUtrAndNino))))
+//      val noticeOfCodingSuppresssion = NoticeOfCodingSuppression(entityWithUtrAndNino.nino, pulledItem.updatedAt)
+//      when(mockNoticeOfCodingSuppressionRepo.setNoticeOfCodingSuppressible(argEq(noticeOfCodingSuppression)) //(argEq(printPreference), any())(any())).
+//        thenReturn(Future.successful(()))
+//      when(mockPreferencesConnector.changeStatus(pulledItem.callbackUrl, workitem.Succeeded)).
+//        thenReturn(Future.successful(OK))
+//
+//      preferencesProcessor.processUpdates(pulledItem).futureValue shouldBe Succeeded(s"updated preference: $callbackUrl")
+//
+//      verify(mockEntityResolverConnector).getTaxIdentifiers(pulledItem.entityId)
+//      verify(mockRepo).insert(argEq(printPreference), any())(any())
+//      verify(mockPreferencesConnector).changeStatus(pulledItem.callbackUrl, workitem.Succeeded)
+//    }
+//  }
+
+    "insertAndUpdate" should {
 
     "be considered failed when the record is inserted into UPS repo and the status of the updated preference is not ok" in new TestCase {
       when(mockRepo.insert(argEq(printPreference), any())(any())).
@@ -156,6 +174,7 @@ class PreferencesProcessorSpec extends UnitSpec with ScalaFutures with MockitoSu
     val mockPreferencesConnector = mock[PreferencesConnector]
     val mockEntityResolverConnector = mock[EntityResolverConnector]
     val mockRepo = mock[UpdatedPrintSuppressionsRepository]
+    val mockNoticeOfCodingSuppressionRepo = mock[NoticeOfCodingSuppressionRepository]
 
     val preferencesProcessor = new PreferencesProcessor {
       val preferencesConnector: PreferencesConnector = mockPreferencesConnector
@@ -174,6 +193,7 @@ class PreferencesProcessorSpec extends UnitSpec with ScalaFutures with MockitoSu
 
     val entity = Entity(randomEntityId, randomUtr)
     val ninoOnlyEntity = Entity(randomEntityId, randomNino)
+    val entityWithUtrAndNino = Entity(randomEntityId, randomUtr, randomNino)
   }
 
 

@@ -21,7 +21,7 @@ import play.api.http.Status._
 import play.api.libs.iteratee.{Enumerator, Iteratee}
 import play.api.{Logger, Play}
 import play.modules.reactivemongo.ReactiveMongoPlugin
-import uk.gov.hmrc.domain.SaUtr
+import uk.gov.hmrc.domain.{Nino, SaUtr}
 import uk.gov.hmrc.play.http.HeaderCarrier
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
 import uk.gov.hmrc.ups.connectors.{EntityResolverConnector, PreferencesConnector}
@@ -59,13 +59,19 @@ trait PreferencesProcessor {
 
   def processUpdates(item: PulledItem)(implicit hc: HeaderCarrier): Future[ProcessingResult] =
     entityResolverConnector.getTaxIdentifiers(item.entityId).flatMap {
+      //case Right(Some(entity)) if entity.taxIdentifiers.filter(u => u == SaUtr) =>
       case Right(Some(entity)) =>
         entity.taxIdentifiers.
           collectFirst[SaUtr] { case utr: SaUtr => utr }.
           fold(updatePreference(item.callbackUrl, workitem.Succeeded)) { utr =>
             insertAndUpdate(createPrintPreference(utr, item), item.callbackUrl, item.updatedAt)
           }
-
+//      case Right(Some(entity)) if entity.taxIdentifiers.filter(n => n == Nino) =>
+//        entity.taxIdentifiers.
+//          collectFirst[Nino] { case nino: Nino => nino }.
+//          fold(updatePreference(item.callbackUrl, workitem.Succeeded)) { nino =>
+//            insertAndUpdate(doSomethingElse(nino, item), item.callbackUrl, item.updatedAt)
+//          }
       case x =>
         val status = if (x.isRight) workitem.PermanentlyFailed else workitem.Failed
         preferencesConnector.changeStatus(item.callbackUrl, status).map {
@@ -90,6 +96,8 @@ trait PreferencesProcessor {
           Failed(s"failed to include $printPreference in updated print suppressions", Some(ex))
         }
       }
+
+  def doSomethingElse(nino: Nino, item: PulledItem): PrintPreference = ???
 
   def updatePreference(callbackUrl: String, status: ProcessingStatus)(implicit hc: HeaderCarrier): Future[ProcessingResult] =
     preferencesConnector.changeStatus(callbackUrl, status).
