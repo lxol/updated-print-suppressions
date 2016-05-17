@@ -22,7 +22,7 @@ import play.api.libs.json.Json
 import play.modules.reactivemongo.ReactiveMongoPlugin
 import reactivemongo.api.indexes.{Index, IndexType}
 import reactivemongo.api.{DB, ReadPreference}
-import reactivemongo.bson.{BSONDocument, BSONObjectID}
+import reactivemongo.bson.{BSONDocument, BSONObjectID, Macros}
 import reactivemongo.json.collection.JSONCollection
 import uk.gov.hmrc.mongo.ReactiveRepository
 import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
@@ -138,21 +138,23 @@ class MongoCounterRepository (implicit mongo: () => DB)
     Seq(Index(Seq("name" -> IndexType.Ascending), name = Some("nameIdx"), unique = true, sparse = false))
 
   def next(counterName:String)(implicit ec: ExecutionContext): Future[Int] = {
-    import reactivemongo.core.commands.{FindAndModify, Update}
 
-    val update = BSONDocument(
-      "$setOnInsert" -> BSONDocument("name" -> counterName),
-      "$inc" -> BSONDocument("value" -> 1)
-    )
-
-    val findAndModifyCommand = FindAndModify(
-      collection = collection.name,
-      query = BSONDocument("name" -> counterName),
-      modify = Update(update, fetchNewObject = true),
+    val update = collection.updateModifier(
+      update = BSONDocument(
+        "$setOnInsert" -> BSONDocument("name" -> counterName),
+        "$inc" -> BSONDocument("value" -> 1)),
+      fetchNewObject = true,
       upsert = true
     )
 
-    collection.db.command[Option[BSONDocument]](findAndModifyCommand).map(opt => (Json.toJson(opt.get).as[Counter]).value)
+    import collection.BatchCommands.FindAndModifyCommand.FindAndModifyResult
+    implicit val reader = Macros.reader[Counter]
+
+    val result: Future[FindAndModifyResult] = collection.findAndModify(
+      selector = BSONDocument("name" -> counterName),
+      modifier = update)
+
+    result.map(_.result[Counter]).map(opt => (Json.toJson(opt.get).as[Counter]).value)
   }
 }
 
