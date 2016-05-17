@@ -61,7 +61,7 @@ abstract class UpdatedPrintSuppressionTestServer(override val databaseName: Stri
     WireMock.reset()
     await(
       upsCollection.drop().flatMap { _ =>
-        MongoCounterRepository(LocalDate.now.toString()).removeAll()
+        MongoCounterRepository().removeAll()
       }
     )
   }

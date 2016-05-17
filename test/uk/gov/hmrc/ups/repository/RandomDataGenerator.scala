@@ -35,7 +35,7 @@ class RandomDataGenerator extends UnitSpec {
 
     "create 3M random records in one day" in new TestSetup {
 
-      val repository: UpdatedPrintSuppressionsRepository = new UpdatedPrintSuppressionsRepository(new LocalDate().minusDays(1), name => MongoCounterRepository(name))
+      val repository: UpdatedPrintSuppressionsRepository = new UpdatedPrintSuppressionsRepository(new LocalDate().minusDays(1), MongoCounterRepository())
       await(repository.removeAll())
       0 to 29 foreach {
         i => {

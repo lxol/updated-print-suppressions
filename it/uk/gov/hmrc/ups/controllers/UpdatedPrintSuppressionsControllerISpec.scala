@@ -83,13 +83,13 @@ class UpdatedPrintSuppressionsControllerISpec extends UnitSpec with WithFakeAppl
 
       val jsonBody = Json.parse(response.body)
       (jsonBody \ "pages").as[Int] shouldBe 2
-      (jsonBody \ "next").as[String] shouldBe s"/preferences/sa/individual/print-suppression?offset=6&limit=6&updated-on=$yesterdayAsString"
+      (jsonBody \ "next").as[String] shouldBe s"/preferences/sa/individual/print-suppression?offset=7&limit=6&updated-on=$yesterdayAsString"
       (jsonBody \ "updates").as[JsArray].value.size shouldBe 6
     }
 
     "honor the offset when another batch of events is requested" in new TestSetup {
       0 to 9 foreach(n => await(repoYesterday.insert(PrintPreference(s"id_$n", "someType", List.empty), yesterday.toDateTimeAtStartOfDay)))
-      val response = get(`/preferences/sa/individual/print-suppression`(Some(yesterdayAsString), Some("6"), Some("6")))
+      val response = get(`/preferences/sa/individual/print-suppression`(Some(yesterdayAsString), Some("7"), Some("6")))
 
       val jsonBody = Json.parse(response.body)
       (jsonBody \ "pages").as[Int] shouldBe 2

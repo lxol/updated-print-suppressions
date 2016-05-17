@@ -43,7 +43,7 @@ class AdminController extends BaseController {
       withJsonBody[PrintPreference] { body =>
         new UpdatedPrintSuppressionsRepository(
           LocalDate.parse(date, dtf),
-            name => MongoCounterRepository(name)
+            MongoCounterRepository()
           ).
           insert(body, DateTimeUtils.now).
           map { _ => Ok("Record inserted") }.

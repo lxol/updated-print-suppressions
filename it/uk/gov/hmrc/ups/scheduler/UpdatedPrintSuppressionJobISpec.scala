@@ -38,7 +38,7 @@ class UpdatedPrintSuppressionJobISpec extends UpdatedPrintSuppressionTestServer 
 
       val ups = await(upsCollection.find(Json.obj("printPreference.id" -> utr.value)).one[UpdatedPrintSuppressions]).get
 
-      ups shouldBe UpdatedPrintSuppressions(ups._id, 0, PrintPreference(utr.value, utr.name, List("ABC", "DEF")), updatedAt)
+      ups shouldBe UpdatedPrintSuppressions(ups._id, 1, PrintPreference(utr.value, utr.name, List("ABC", "DEF")), updatedAt)
 
     }
 

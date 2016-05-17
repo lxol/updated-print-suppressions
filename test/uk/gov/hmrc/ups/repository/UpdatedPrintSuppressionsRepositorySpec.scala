@@ -36,15 +36,15 @@ class UpdatedPrintSuppressionsRepositorySpec extends UnitSpec with MongoSpecSupp
   def counterRepoStub = new CounterRepository {
     var counter: Int = -1
 
-    override def next(implicit ec: ExecutionContext): Future[Int] = {
+    override def next(counterName:String)(implicit ec: ExecutionContext): Future[Int] = {
       counter = counter + 1
       Future(counter)(ec)
     }
   }
 
   override def beforeEach(): Unit = {
-    await(new UpdatedPrintSuppressionsRepository(TODAY, _ => counterRepoStub).collection.drop())
-    await(MongoCounterRepository(TODAY.toString("yyyyMMdd")).removeAll())
+    await(new UpdatedPrintSuppressionsRepository(TODAY, counterRepoStub).collection.drop())
+    await(new MongoCounterRepository().removeAll())
   }
 
   def toCounterAndPreference(ups: UpdatedPrintSuppressions): (Int, PrintPreference, DateTime) = (ups.counter, ups.printPreference, ups.updatedAt)
@@ -55,7 +55,7 @@ class UpdatedPrintSuppressionsRepositorySpec extends UnitSpec with MongoSpecSupp
 
     "increment the counter and save the updated print suppression" in {
 
-      val repository = new UpdatedPrintSuppressionsRepository(TODAY, _ => counterRepoStub)
+      val repository = new UpdatedPrintSuppressionsRepository(TODAY, counterRepoStub)
 
       val ppOne = PrintPreference("11111111", "someType", List.empty)
       val ppTwo = PrintPreference("22222222", "someType", List.empty)
@@ -69,7 +69,7 @@ class UpdatedPrintSuppressionsRepositorySpec extends UnitSpec with MongoSpecSupp
 
     "find and return all records within a range" in {
 
-      val repository = new UpdatedPrintSuppressionsRepository(TODAY, _ => counterRepoStub)
+      val repository = new UpdatedPrintSuppressionsRepository(TODAY, counterRepoStub)
       0 to 9 foreach(n => await(repository.insert(PrintPreference(s"id_$n","a type", List.empty), now)))
       repository.find(0, 2).futureValue shouldBe List(
         PrintPreference("id_0","a type", List.empty),
@@ -81,7 +81,7 @@ class UpdatedPrintSuppressionsRepositorySpec extends UnitSpec with MongoSpecSupp
       val pp = PrintPreference("11111111", "someType", List.empty)
       val preferenceWithSameId: PrintPreference = pp.copy(formIds = List("SomeId"))
 
-      val repository = new UpdatedPrintSuppressionsRepository(TODAY, _ => counterRepoStub)
+      val repository = new UpdatedPrintSuppressionsRepository(TODAY, counterRepoStub)
 
       await(repository.insert(pp, now))
       await(repository.insert(preferenceWithSameId, now.plusMillis(1)))
@@ -93,7 +93,7 @@ class UpdatedPrintSuppressionsRepositorySpec extends UnitSpec with MongoSpecSupp
     "duplicate keys due to race conditions are recoverable" in {
       val utr: String = "11111111"
 
-      val repository = new UpdatedPrintSuppressionsRepository(TODAY, _ => counterRepoStub)
+      val repository = new UpdatedPrintSuppressionsRepository(TODAY, counterRepoStub)
 
      await(
        Future.sequence(
@@ -114,25 +114,26 @@ class UpdatedPrintSuppressionsRepositorySpec extends UnitSpec with MongoSpecSupp
   "The counter repository" should {
 
     "initialise to zero" in {
-      val repository = MongoCounterRepository("test-counter")
+      val repository = new MongoCounterRepository()
+      repository.next("test-counter").futureValue shouldBe 1
       val counter: Counter = repository.findAll().head
-      counter.value shouldBe 0
+      counter.value shouldBe 1
       counter.name shouldBe "test-counter"
     }
 
     "initialise to zero only if the value doesnt exist already" in {
-      val repositoryT0 = MongoCounterRepository("test-counter")
-      await(repositoryT0.next)
-      val repositoryT1 = MongoCounterRepository("test-counter")
+      val repositoryT0 = new MongoCounterRepository()
+      await(repositoryT0.next("test-counter"))
+      val repositoryT1 = new MongoCounterRepository()
       repositoryT1.findAll().map {
         _.headOption.map(head => (head.value, head.name))
       }.futureValue shouldBe Some((1, "test-counter"))
     }
 
     "increment and return the next value" in {
-      val repository = MongoCounterRepository("test-counter")
-      await(repository.next)
-      await(repository.next)
+      val repository = new MongoCounterRepository()
+      await(repository.next("test-counter"))
+      await(repository.next("test-counter"))
 
       repository.count.futureValue shouldBe 1
       repository.findAll().map {

@@ -19,6 +19,7 @@ package uk.gov.hmrc.ups.repository
 import org.joda.time.{DateTime, LocalDate}
 import play.api.Logger
 import play.api.libs.json.Json
+import play.modules.reactivemongo.ReactiveMongoPlugin
 import reactivemongo.api.indexes.{Index, IndexType}
 import reactivemongo.api.{DB, ReadPreference}
 import reactivemongo.bson.{BSONDocument, BSONObjectID}
@@ -27,8 +28,7 @@ import uk.gov.hmrc.mongo.ReactiveRepository
 import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 import uk.gov.hmrc.ups.model.PrintPreference
 
-import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.{ExecutionContext, Future}
 
 case class UpdatedPrintSuppressions(_id: BSONObjectID,
                                     counter: Int,
@@ -49,11 +49,11 @@ object UpdatedPrintSuppressions {
   def repoNameTemplate(date: LocalDate) = s"updated_print_suppressions_${toString(date)}"
 }
 
-class UpdatedPrintSuppressionsRepository(date: LocalDate, repoCreator: String => CounterRepository, mc: Option[JSONCollection] = None)
+class UpdatedPrintSuppressionsRepository(date: LocalDate, counterRepo: CounterRepository, mc: Option[JSONCollection] = None)
                                         (implicit mongo: () => DB, ec: ExecutionContext)
   extends ReactiveRepository[UpdatedPrintSuppressions, BSONObjectID](UpdatedPrintSuppressions.repoNameTemplate(date), mongo, UpdatedPrintSuppressions.formats, mc = mc) {
 
-  val counterRepo = repoCreator(UpdatedPrintSuppressions.toString(date))
+  private val counterRepoDate = UpdatedPrintSuppressions.toString(date)
 
   override def indexes: Seq[Index] =
     Seq(
@@ -90,7 +90,7 @@ class UpdatedPrintSuppressionsRepository(date: LocalDate, repoCreator: String =>
           ).map { _ => () }
 
         case None =>
-          counterRepo.next.flatMap { counter =>
+          counterRepo.next(counterRepoDate).flatMap { counter =>
             collection.findAndUpdate(
               selector = selector ++ updatedAtSelector,
               update = BSONDocument(
@@ -128,38 +128,44 @@ object Counter {
 }
 
 trait CounterRepository {
-  def next(implicit ec: ExecutionContext): Future[Int]
+  def next(counterName:String)(implicit ec: ExecutionContext): Future[Int]
 }
 
-class MongoCounterRepository private(counterName: String)(implicit mongo: () => DB)
+class MongoCounterRepository (implicit mongo: () => DB)
   extends ReactiveRepository[Counter, BSONObjectID]("counters", mongo, Counter.formats, ReactiveMongoFormats.objectIdFormats) with CounterRepository {
 
   override def indexes: Seq[Index] =
     Seq(Index(Seq("name" -> IndexType.Ascending), name = Some("nameIdx"), unique = true, sparse = false))
 
-  def next(implicit ec: ExecutionContext): Future[Int] = {
-    collection.findAndUpdate(
-      selector = BSONDocument("name" -> counterName),
-      update = BSONDocument("$inc" -> BSONDocument("value" -> 1)),
-      fetchNewObject = false
-    ).map(_.result[Counter].getOrElse(throw new RuntimeException("No initialised counter found")).value)
-  }
+  def next(counterName:String)(implicit ec: ExecutionContext): Future[Int] = {
+    import reactivemongo.core.commands.{FindAndModify, Update}
 
-  private[MongoCounterRepository] def initialise(implicit ec: ExecutionContext): Future[Boolean] = {
-    collection.update(
-      BSONDocument("name" -> counterName),
-      BSONDocument("$setOnInsert" -> Counter.formats.writes(Counter(BSONObjectID.generate, counterName, 0))),
+    val update = BSONDocument(
+      "$setOnInsert" -> BSONDocument("name" -> counterName),
+      "$inc" -> BSONDocument("value" -> 1)
+    )
+
+    val findAndModifyCommand = FindAndModify(
+      collection = collection.name,
+      query = BSONDocument("name" -> counterName),
+      modify = Update(update, fetchNewObject = true),
       upsert = true
-    ).map(_.ok)
+    )
+
+    collection.db.command[Option[BSONDocument]](findAndModifyCommand).map(opt => (Json.toJson(opt.get).as[Counter]).value)
   }
 }
 
 object MongoCounterRepository {
-  def apply(counterName: String)(implicit ec: ExecutionContext, mongo: () => DB): MongoCounterRepository = {
-    val result = new MongoCounterRepository(counterName)
-    Await.result(result.initialise, 5 seconds)
-    result
+  private implicit val connection = {
+    import play.api.Play.current
+    ReactiveMongoPlugin.mongoConnector.db
   }
 
+  private val repo =  new MongoCounterRepository()
+
+  def apply() : MongoCounterRepository = {
+    repo
+  }
 }
 

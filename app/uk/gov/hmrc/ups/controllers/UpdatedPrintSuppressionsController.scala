@@ -39,9 +39,9 @@ trait UpdatedPrintSuppressionsController extends BaseController {
     Action.async { implicit request =>
       pastLocalDateBinder.bind("updated-on", request.queryString) match {
         case Some(Right(updatedOn)) =>
-          val repository = new UpdatedPrintSuppressionsRepository(updatedOn.value, counterName => MongoCounterRepository(counterName))
+          val repository = new UpdatedPrintSuppressionsRepository(updatedOn.value, MongoCounterRepository())
           val limit = optLimit.getOrElse(Limit.max)
-          val offset = optOffset.getOrElse(0)
+          val offset = optOffset.getOrElse(1)
           for {
             count <- repository.count
             updates <- repository.find(offset, limit.value)

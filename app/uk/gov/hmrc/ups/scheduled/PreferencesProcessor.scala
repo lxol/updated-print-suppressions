@@ -141,7 +141,7 @@ object PreferencesProcessor extends PreferencesProcessor {
 
     new UpdatedPrintSuppressionsRepository(
       LocalDate.now(),
-      counterName => MongoCounterRepository(counterName),
+      MongoCounterRepository(),
       Some(collection)
     )
   }
