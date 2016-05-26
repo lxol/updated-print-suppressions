@@ -52,7 +52,7 @@ trait UpdatedPrintSuppressionsController extends BaseController {
                 UpdatedPrintPreferences(
                   pages = pages,
                   next = nextPageURL(updatedOn, limit, count, offset),
-                  updates = updates
+                  updates = updates.map(_.convertIdType)
                 )
               )
             )

@@ -53,6 +53,30 @@ class UpdatedPrintSuppressionsControllerISpec extends UnitSpec with WithFakeAppl
       (jsonBody \ "updates") (1).as[PrintPreference] shouldBe ppTwo
     }
 
+    "return 'utr' instead of 'sautr' as idType for all available print suppression change events occurred that day" in new TestSetup {
+      val pp1 = PrintPreference("11", "sautr", List("ABC"))
+      val pp2 = PrintPreference("22", "utr", List("f1", "f2"))
+      val pp3 = PrintPreference("33", "someType", List("f1", "f2"))
+
+      await(
+        repoYesterday.insert(pp1, yesterday.toDateTimeAtStartOfDay).flatMap { _ =>
+          repoYesterday.insert(pp2, yesterday.toDateTimeAtStartOfDay).flatMap { _ =>
+            repoYesterday.insert(pp3, yesterday.toDateTimeAtStartOfDay)
+          }
+        }
+      )
+
+      val response = get(`/preferences/sa/individual/print-suppression`(Some(yesterdayAsString), None, None))
+      response.status shouldBe 200
+
+      val jsonBody = Json.parse(response.body)
+      (jsonBody \ "pages").as[Int] shouldBe 1
+      (jsonBody \ "updates").as[JsArray].value.size shouldBe 3
+      ((jsonBody \ "updates") (0) \ "idType").as[String] shouldBe "utr"
+      ((jsonBody \ "updates") (1) \ "idType").as[String] shouldBe "utr"
+      ((jsonBody \ "updates") (2) \ "idType").as[String] shouldBe "someType"
+    }
+
     "not return print suppression change events occurred on another day" in new TestSetup {
 
       val ppOne = PrintPreference("11111111", "someType", List.empty)

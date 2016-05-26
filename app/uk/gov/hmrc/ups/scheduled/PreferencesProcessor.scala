@@ -115,7 +115,7 @@ trait PreferencesProcessor {
       }
 
   def createPrintPreference(utr: SaUtr, item: PulledItem) =
-    PrintPreference(utr.value, "sautr", if (item.paperless) formIds else List.empty)
+    PrintPreference(utr.value, "utr", if (item.paperless) formIds else List.empty)
 }
 
 object PreferencesProcessor extends PreferencesProcessor {
