@@ -28,7 +28,12 @@ object UpdatedPrintPreferences {
   }
 }
 
-case class PrintPreference(id: String, idType: String, formIds: List[String])
+case class PrintPreference(id: String, idType: String, formIds: List[String]) {
+  def convertIdType: PrintPreference = idType match {
+    case "sautr" => this.copy(idType = "utr")
+    case _ => this
+  }
+}
 
 object PrintPreference {
   implicit val formats = Json.format[PrintPreference]

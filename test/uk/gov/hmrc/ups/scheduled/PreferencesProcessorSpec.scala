@@ -170,7 +170,7 @@ class PreferencesProcessorSpec extends UnitSpec with ScalaFutures with MockitoSu
     val randomEntityId = Generate.entityId
 
     val pulledItem = PulledItem(randomEntityId, true, DateTimeUtils.now.minusMinutes(10), "someUrl")
-    val printPreference = PrintPreference(randomUtr.value, "sautr", forms)
+    val printPreference = PrintPreference(randomUtr.value, "utr", forms)
 
     val entity = Entity(randomEntityId, randomUtr)
     val ninoOnlyEntity = Entity(randomEntityId, randomNino)
