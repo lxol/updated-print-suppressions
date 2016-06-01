@@ -19,7 +19,7 @@ trait TestServer extends ScalaFutures with DatabaseName with MongoMicroServiceEm
 
   override protected def additionalConfig: Map[String, Any] = Map("auditing.enabled" -> false)
 
-  def `/preferences/sa/individual/print-suppression`(updatedOn: Option[String], offset: Option[String], limit: Option[String]) = {
+  def `/preferences/sa/individual/print-suppression`(updatedOn: Option[String], offset: Option[String], limit: Option[String], isAdmin : Boolean = false) = {
 
     val queryString = List(
       updatedOn.map(value => "updated-on" -> value),
@@ -27,7 +27,10 @@ trait TestServer extends ScalaFutures with DatabaseName with MongoMicroServiceEm
       limit.map(value => "limit" -> value)
     ).flatten
 
-    WS.url(resource("/preferences/sa/individual/print-suppression")).withQueryString(queryString: _*)
+    if (isAdmin)
+      WS.url(resource("/test-only/preferences/sa/individual/print-suppression")).withQueryString(queryString: _*)
+    else
+      WS.url(resource("/preferences/sa/individual/print-suppression")).withQueryString(queryString: _*)
   }
 
 

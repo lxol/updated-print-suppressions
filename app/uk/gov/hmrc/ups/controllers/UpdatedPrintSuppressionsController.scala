@@ -22,8 +22,8 @@ import play.modules.reactivemongo.ReactiveMongoPlugin
 import uk.gov.hmrc.play.http.BadRequestException
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
 import uk.gov.hmrc.play.microservice.controller.BaseController
+import uk.gov.hmrc.ups.controllers.bind.PastLocalDateBindable
 import uk.gov.hmrc.ups.model.{Limit, PastLocalDate, UpdatedPrintPreferences}
-import uk.gov.hmrc.ups.pastLocalDateBinder
 import uk.gov.hmrc.ups.repository.{MongoCounterRepository, UpdatedPrintSuppressionsRepository}
 
 import scala.math.BigDecimal.RoundingMode
@@ -35,9 +35,11 @@ trait UpdatedPrintSuppressionsController extends BaseController {
   implicit val mongo = ReactiveMongoPlugin.mongoConnector.db
   implicit val uppf = UpdatedPrintPreferences.formats
 
+  def localDateBinder : QueryStringBindable[PastLocalDate]
+
   def list(optOffset: Option[Int], optLimit: Option[Limit]): Action[AnyContent] =
     Action.async { implicit request =>
-      pastLocalDateBinder.bind("updated-on", request.queryString) match {
+      localDateBinder.bind("updated-on", request.queryString) match {
         case Some(Right(updatedOn)) =>
           val repository = new UpdatedPrintSuppressionsRepository(updatedOn.value, MongoCounterRepository())
           val limit = optLimit.getOrElse(Limit.max)
@@ -69,9 +71,11 @@ trait UpdatedPrintSuppressionsController extends BaseController {
       Some(routes.UpdatedPrintSuppressionsController.list(
         offset = Some(offset + limit.value),
         limit = Some(limit)
-      ).url + s"&${pastLocalDateBinder.unbind("updated-on", updatedOn)}")
+      ).url + s"&${localDateBinder.unbind("updated-on", updatedOn)}")
     else None
   }
 }
 
-object UpdatedPrintSuppressionsController extends UpdatedPrintSuppressionsController
+object UpdatedPrintSuppressionsController extends UpdatedPrintSuppressionsController {
+  val localDateBinder = new PastLocalDateBindable{}
+}
