@@ -16,10 +16,8 @@
 
 package uk.gov.hmrc
 
-import uk.gov.hmrc.ups.controllers.bind.{LimitBinder, PastLocalDateBindable}
+import uk.gov.hmrc.ups.controllers.bind.LimitBinder
 
 package object ups {
-
   implicit val limitBinder = new LimitBinder{}
-  implicit val pastLocalDateBinder = new PastLocalDateBindable{}
 }

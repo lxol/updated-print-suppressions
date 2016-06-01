@@ -14,3 +14,4 @@
 
 POST /preferences/sa/individual/print-suppression                   uk.gov.hmrc.ups.controllers.admin.AdminController.insert(date: String)
 POST /updated-print-suppressions-admin/process-print-suppressions   uk.gov.hmrc.ups.controllers.admin.AdminController.processPrintSuppressions()
+GET  /test-only/preferences/sa/individual/print-suppression         uk.gov.hmrc.ups.controllers.admin.AdminController.list(offset: Option[Int], limit: Option[Limit])

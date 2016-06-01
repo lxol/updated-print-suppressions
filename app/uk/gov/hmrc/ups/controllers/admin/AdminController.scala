@@ -18,21 +18,17 @@ package uk.gov.hmrc.ups.controllers.admin
 
 
 import org.joda.time.LocalDate
-import play.api.mvc.Action
-import play.modules.reactivemongo.ReactiveMongoPlugin
+import play.api.mvc.{Action, QueryStringBindable}
 import uk.gov.hmrc.play.http.HeaderCarrier
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
-import uk.gov.hmrc.play.microservice.controller.BaseController
 import uk.gov.hmrc.time.DateTimeUtils
-import uk.gov.hmrc.ups.model.PrintPreference
+import uk.gov.hmrc.ups.controllers.UpdatedPrintSuppressionsController
+import uk.gov.hmrc.ups.controllers.bind.PastLocalDateBindable
+import uk.gov.hmrc.ups.model.{PastLocalDate, PrintPreference}
 import uk.gov.hmrc.ups.repository.{MongoCounterRepository, UpdatedPrintSuppressionsRepository}
 import uk.gov.hmrc.ups.scheduled.PreferencesProcessor
 
-class AdminController extends BaseController {
-
-  import play.api.Play.current
-
-  implicit val mongo = ReactiveMongoPlugin.mongoConnector.db
+trait AdminController extends UpdatedPrintSuppressionsController {
 
   implicit val ppf = PrintPreference.formats
 
@@ -61,4 +57,10 @@ class AdminController extends BaseController {
   }
 }
 
-object AdminController extends AdminController
+object NoPastDateValidationBindable extends PastLocalDateBindable {
+  override val shouldValidatePastDate = false
+}
+
+object AdminController extends AdminController {
+  override def localDateBinder: QueryStringBindable[PastLocalDate] = NoPastDateValidationBindable
+}
