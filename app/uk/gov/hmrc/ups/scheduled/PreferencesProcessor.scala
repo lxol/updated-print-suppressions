@@ -20,19 +20,18 @@ import org.joda.time.{DateTime, LocalDate}
 import play.api.http.Status._
 import play.api.libs.iteratee.{Enumerator, Iteratee}
 import play.api.{Logger, Play}
-import play.modules.reactivemongo.ReactiveMongoPlugin
-import reactivemongo.api.collections.bson.BSONCollection
+import play.modules.reactivemongo.MongoDbConnection
 import reactivemongo.json.collection.JSONCollection
 import uk.gov.hmrc.domain.SaUtr
 import uk.gov.hmrc.play.http.HeaderCarrier
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
 import uk.gov.hmrc.ups.connectors.{EntityResolverConnector, PreferencesConnector}
 import uk.gov.hmrc.ups.model.{PrintPreference, PulledItem}
-import uk.gov.hmrc.ups.repository.{UpdatedPrintSuppressions, MongoCounterRepository, UpdatedPrintSuppressionsRepository}
+import uk.gov.hmrc.ups.repository.{MongoCounterRepository, UpdatedPrintSuppressions, UpdatedPrintSuppressionsRepository}
 import uk.gov.hmrc.workitem
 import uk.gov.hmrc.workitem.ProcessingStatus
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 trait PreferencesProcessor {
 
@@ -42,7 +41,7 @@ trait PreferencesProcessor {
 
   def preferencesConnector: PreferencesConnector
 
-  def repo: UpdatedPrintSuppressionsRepository
+  def repo(implicit executionContext: ExecutionContext): UpdatedPrintSuppressionsRepository
 
   def run(implicit hc: HeaderCarrier): Future[TotalCounts] = {
     def incrementOnFailure(totals: TotalCounts): TotalCounts =
@@ -118,15 +117,8 @@ trait PreferencesProcessor {
     PrintPreference(utr.value, "utr", if (item.paperless) formIds else List.empty)
 }
 
-object PreferencesProcessor extends PreferencesProcessor {
-  private implicit val connection = {
-    import play.api.Play.current
-    ReactiveMongoPlugin.mongoConnector.db
-  }
-
-  val connectionOnce = connection()
-
-  import scala.concurrent.ExecutionContext.Implicits.global
+object PreferencesProcessor extends PreferencesProcessor with MongoDbConnection {
+  val connectionOnce = db()
 
   lazy val formIds: List[String] =
     Play.current.configuration.getStringSeq("form-types.saAll").
@@ -136,7 +128,7 @@ object PreferencesProcessor extends PreferencesProcessor {
   def preferencesConnector: PreferencesConnector = PreferencesConnector
 
 
-  def repo: UpdatedPrintSuppressionsRepository = {
+  def repo(implicit executionContext: ExecutionContext): UpdatedPrintSuppressionsRepository = {
     val collection: JSONCollection = connectionOnce.collection[JSONCollection](UpdatedPrintSuppressions.repoNameTemplate( LocalDate.now()))
 
     new UpdatedPrintSuppressionsRepository(

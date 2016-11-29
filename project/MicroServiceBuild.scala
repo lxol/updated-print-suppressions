@@ -1,4 +1,4 @@
-import play.PlayImport.PlayKeys._
+import play.sbt.routes.RoutesKeys._
 import sbt._
 import uk.gov.hmrc.SbtAutoBuildPlugin
 import uk.gov.hmrc.sbtdistributables.SbtDistributablesPlugin
@@ -21,59 +21,30 @@ object MicroServiceBuild extends Build with MicroService {
 
 private object AppDependencies {
 
-  import play.PlayImport._
+  import play.sbt.PlayImport._
   import play.core.PlayVersion
 
-  val compile = Seq(
-    "uk.gov.hmrc" %% "play-reactivemongo" % "4.8.0",
+  def apply() = Seq(
     ws,
-    "uk.gov.hmrc" %% "microservice-bootstrap" % "4.4.0",
-    "uk.gov.hmrc" %% "play-authorisation" % "3.3.0",
-    "uk.gov.hmrc" %% "play-scheduling"  % "3.0.0",
-    "uk.gov.hmrc" %% "play-health" % "1.1.0",
-    "uk.gov.hmrc" %% "play-url-binders" % "1.0.0",
-    "uk.gov.hmrc" %% "play-config" % "2.0.1",
-    "uk.gov.hmrc" %% "play-json-logger" % "2.1.1",
-    "uk.gov.hmrc" %% "domain" % "3.7.0",
-    "uk.gov.hmrc" %% "work-item-repo" % "3.1.0"
+
+    "uk.gov.hmrc"             %% "play-reactivemongo"     % "5.1.0",
+    "uk.gov.hmrc"             %% "microservice-bootstrap" % "5.8.0",
+    "uk.gov.hmrc"             %% "play-authorisation"     % "4.2.0",
+    "uk.gov.hmrc"             %% "play-config"            % "3.0.0",
+    "uk.gov.hmrc"             %% "play-scheduling"        % "4.0.0",
+    "uk.gov.hmrc"             %% "play-health"            % "2.0.0",
+    "uk.gov.hmrc"             %% "logback-json-logger"    % "3.1.0",
+    "uk.gov.hmrc"             %% "domain"                 % "4.0.0",
+    "uk.gov.hmrc"             %% "work-item-repo"         % "4.0.0",
+
+    "uk.gov.hmrc"             %% "hmrctest"               % "2.2.0"             % "test, it",
+    "uk.gov.hmrc"             %% "reactivemongo-test"     % "2.0.0"             % "test, it",
+    "org.mockito"             %  "mockito-all"            % "1.9.5"             % "test, it",
+    "com.github.tomakehurst"  %  "wiremock"               % "1.56"              % "test, it",
+    "org.scalatest"           %% "scalatest"              % "2.2.6"             % "test, it",
+    "org.pegdown"             %  "pegdown"                % "1.6.0"             % "test, it",
+    "org.scalatestplus.play"  %% "scalatestplus-play"     % "1.5.1"             % "test, it",
+    "com.typesafe.play"       %% "play-test"              % PlayVersion.current % "test, it"
   )
-
-  trait TestDependencies {
-    lazy val scope: String = "test"
-    lazy val test: Seq[ModuleID] = ???
-  }
-
-  object Test {
-    def apply() = new TestDependencies {
-      override lazy val test = Seq(
-        "uk.gov.hmrc" %% "hmrctest" % "1.6.0",
-        "org.scalatest" %% "scalatest" % "2.2.6",
-        "org.pegdown" % "pegdown" % "1.6.0",
-        "com.typesafe.play" %% "play-test" % PlayVersion.current,
-        "com.github.tomakehurst" % "wiremock" % "1.56",
-        "org.scalatestplus" %% "play" % "1.2.0",
-        "uk.gov.hmrc" %% "reactivemongo-test" % "1.6.0"
-      ).map (_ % scope)
-    }.test
-  }
-
-  object IntegrationTest {
-    def apply() = new TestDependencies {
-
-      override lazy val scope: String = "it"
-
-      override lazy val test = Seq(
-        "uk.gov.hmrc" %% "hmrctest" % "1.6.0",
-        "org.scalatest" %% "scalatest" % "2.2.6",
-        "org.pegdown" % "pegdown" % "1.6.0",
-        "com.typesafe.play" %% "play-test" % PlayVersion.current,
-        "com.github.tomakehurst" % "wiremock" % "1.56",
-        "org.scalatestplus" %% "play" % "1.2.0",
-        "uk.gov.hmrc" %% "reactivemongo-test" % "1.6.0"
-      ).map(_  % scope)
-    }.test
-  }
-
-  def apply() = compile ++ Test() ++ IntegrationTest()
 }
 

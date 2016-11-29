@@ -19,6 +19,7 @@ package uk.gov.hmrc.ups.controllers.admin
 
 import org.joda.time.LocalDate
 import play.api.mvc.{Action, QueryStringBindable}
+import play.modules.reactivemongo.MongoDbConnection
 import uk.gov.hmrc.play.http.HeaderCarrier
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
 import uk.gov.hmrc.time.DateTimeUtils
@@ -28,7 +29,7 @@ import uk.gov.hmrc.ups.model.{PastLocalDate, PrintPreference}
 import uk.gov.hmrc.ups.repository.{MongoCounterRepository, UpdatedPrintSuppressionsRepository}
 import uk.gov.hmrc.ups.scheduled.PreferencesProcessor
 
-trait AdminController extends UpdatedPrintSuppressionsController {
+trait AdminController extends UpdatedPrintSuppressionsController with MongoDbConnection {
 
   implicit val ppf = PrintPreference.formats
 

@@ -18,7 +18,7 @@ package uk.gov.hmrc.ups.connectors
 
 import org.mockito.Matchers._
 import org.mockito.Mockito._
-import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.mock.MockitoSugar
 import play.api.http.Status
 import play.api.libs.json.Json
@@ -28,7 +28,7 @@ import uk.gov.hmrc.ups.model.Entity
 import uk.gov.hmrc.ups.utils.Generate
 
 
-class EntityResolverConnectorSpec extends UnitSpec with MockitoSugar with ScalaFutures {
+class EntityResolverConnectorSpec extends UnitSpec with MockitoSugar with ScalaFutures with IntegrationPatience {
 
   implicit val hc = HeaderCarrier()
 

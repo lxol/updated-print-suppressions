@@ -30,7 +30,7 @@ import uk.gov.hmrc.ups.model.{Entity, PrintPreference, PulledItem}
 import uk.gov.hmrc.ups.repository.UpdatedPrintSuppressionsRepository
 import uk.gov.hmrc.ups.utils.Generate
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import uk.gov.hmrc.workitem
 
 class PreferencesProcessorSpec extends UnitSpec with ScalaFutures with MockitoSugar {
@@ -160,7 +160,7 @@ class PreferencesProcessorSpec extends UnitSpec with ScalaFutures with MockitoSu
     val preferencesProcessor = new PreferencesProcessor {
       val preferencesConnector: PreferencesConnector = mockPreferencesConnector
       val entityResolverConnector: EntityResolverConnector = mockEntityResolverConnector
-      val repo = mockRepo
+      def repo(implicit executionContext: ExecutionContext) = mockRepo
 
       def formIds: List[String] = forms
     }
