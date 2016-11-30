@@ -29,7 +29,7 @@ import uk.gov.hmrc.ups.model.{PastLocalDate, PrintPreference}
 import uk.gov.hmrc.ups.repository.{MongoCounterRepository, UpdatedPrintSuppressionsRepository}
 import uk.gov.hmrc.ups.scheduled.PreferencesProcessor
 
-trait AdminController extends UpdatedPrintSuppressionsController with MongoDbConnection {
+trait AdminController extends UpdatedPrintSuppressionsController {
 
   implicit val ppf = PrintPreference.formats
 
