@@ -2,24 +2,32 @@ package uk.gov.hmrc.ups.controllers
 
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.ScalaFutures
-import play.api.libs.ws.{WSRequestHolder, WS}
-import uk.gov.hmrc.play.it.{ExternalService, MongoMicroServiceEmbeddedServer}
+import org.scalatestplus.play.{OneServerPerSuite, WsScalaTestClient}
+import play.api.inject.guice.GuiceApplicationBuilder
+import play.api.libs.ws.WSRequest
 import uk.gov.hmrc.play.test.UnitSpec
 
 trait DatabaseName {
   val testName: String = "updated-print-suppressions"
 }
 
-trait TestServer extends ScalaFutures with DatabaseName with MongoMicroServiceEmbeddedServer with UnitSpec with BeforeAndAfterAll {
-  import play.api.Play.current
+trait TestServer
+  extends ScalaFutures
+    with DatabaseName
+    with UnitSpec
+    with BeforeAndAfterAll
+    with OneServerPerSuite
+    with WsScalaTestClient {
 
-  override val dbName = "updated-print-suppressions"
-  override protected val externalServices: Seq[ExternalService] = Seq.empty
+  override implicit lazy val app = new GuiceApplicationBuilder()
+    .configure(Map("auditing.enabled" -> false,
+      "mongodb.uri" -> "mongodb://localhost:27017/updated-print-suppressions",
+      "application.router" -> "testOnlyDoNotUseInAppConf.Routes"
+    ))
+    .build()
 
 
-  override protected def additionalConfig: Map[String, Any] = Map("auditing.enabled" -> false)
-
-  def `/preferences/sa/individual/print-suppression`(updatedOn: Option[String], offset: Option[String], limit: Option[String], isAdmin : Boolean = false) = {
+  def `/preferences/sa/individual/print-suppression`(updatedOn: Option[String], offset: Option[String], limit: Option[String], isAdmin: Boolean = false) = {
 
     val queryString = List(
       updatedOn.map(value => "updated-on" -> value),
@@ -28,15 +36,11 @@ trait TestServer extends ScalaFutures with DatabaseName with MongoMicroServiceEm
     ).flatten
 
     if (isAdmin)
-      WS.url(resource("/test-only/preferences/sa/individual/print-suppression")).withQueryString(queryString: _*)
+      wsUrl("/test-only/preferences/sa/individual/print-suppression").withQueryString(queryString: _*)
     else
-      WS.url(resource("/preferences/sa/individual/print-suppression")).withQueryString(queryString: _*)
+      wsUrl("/preferences/sa/individual/print-suppression").withQueryString(queryString: _*)
   }
 
+  def get(url: WSRequest) = url.get().futureValue
 
-  def get(url: WSRequestHolder) = url.get().futureValue
-
-  override def beforeAll(): Unit = start()
-
-  override def afterAll(): Unit = stop()
 }

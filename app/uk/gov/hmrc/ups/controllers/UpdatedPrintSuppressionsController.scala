@@ -18,7 +18,8 @@ package uk.gov.hmrc.ups.controllers
 
 import play.api.libs.json.Json
 import play.api.mvc._
-import play.modules.reactivemongo.ReactiveMongoPlugin
+import play.modules.reactivemongo.MongoDbConnection
+import reactivemongo.api.DefaultDB
 import uk.gov.hmrc.play.http.BadRequestException
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
 import uk.gov.hmrc.play.microservice.controller.BaseController
@@ -28,11 +29,8 @@ import uk.gov.hmrc.ups.repository.{MongoCounterRepository, UpdatedPrintSuppressi
 
 import scala.math.BigDecimal.RoundingMode
 
-trait UpdatedPrintSuppressionsController extends BaseController {
+trait UpdatedPrintSuppressionsController extends BaseController with MongoDbConnection {
 
-  import play.api.Play.current
-
-  implicit val mongo = ReactiveMongoPlugin.mongoConnector.db
   implicit val uppf = UpdatedPrintPreferences.formats
 
   def localDateBinder : QueryStringBindable[PastLocalDate]

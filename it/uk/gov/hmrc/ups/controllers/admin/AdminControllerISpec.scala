@@ -8,16 +8,12 @@ import uk.gov.hmrc.ups.model.PrintPreference
 
 class AdminControllerISpec extends UnitSpec with TestServer {
 
-  import play.api.Play.current
-
-  override protected def additionalConfig: Map[String, Any] = super.additionalConfig ++ Map("application.router" -> "testOnlyDoNotUseInAppConf.Routes")
-
 
   "AdminController" should {
 
     "insert a new PrintPreference" in new TestSetup {
       private val preference = PrintPreference("someId", "someType", List("f1"))
-      await(WS.url(resource("/preferences/sa/individual/print-suppression")).withQueryString("date" -> yesterdayAsString).post(Json.toJson(preference)))
+      await(wsUrl("/preferences/sa/individual/print-suppression").withQueryString("date" -> yesterdayAsString).post(Json.toJson(preference)))
 
       val all = repoYesterday.findAll()
 

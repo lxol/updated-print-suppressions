@@ -19,7 +19,7 @@ package uk.gov.hmrc.ups.repository
 import org.joda.time.{DateTime, LocalDate}
 import play.api.Logger
 import play.api.libs.json.Json
-import play.modules.reactivemongo.ReactiveMongoPlugin
+import play.modules.reactivemongo.MongoDbConnection
 import reactivemongo.api.indexes.{Index, IndexType}
 import reactivemongo.api.{DB, ReadPreference}
 import reactivemongo.bson.{BSONDocument, BSONObjectID, Macros}
@@ -67,7 +67,7 @@ class UpdatedPrintSuppressionsRepository(date: LocalDate, counterRepo: CounterRe
 
     val from = offset
     val to = offset + limit
-    val query = Json.obj("counter" -> Json.obj("$gte" -> from), "counter" -> Json.obj("$lt" -> to))
+    val query = Json.obj("counter" -> Json.obj("$gte" -> from, "$lt" -> to))
     val e: Future[List[UpdatedPrintSuppressions]] = collection.find(query)
       .cursor[UpdatedPrintSuppressions](ReadPreference.primaryPreferred)
       .collect[List]()
@@ -158,11 +158,7 @@ class MongoCounterRepository (implicit mongo: () => DB)
   }
 }
 
-object MongoCounterRepository {
-  private implicit val connection = {
-    import play.api.Play.current
-    ReactiveMongoPlugin.mongoConnector.db
-  }
+object MongoCounterRepository extends MongoDbConnection{
 
   private val repo =  new MongoCounterRepository()
 

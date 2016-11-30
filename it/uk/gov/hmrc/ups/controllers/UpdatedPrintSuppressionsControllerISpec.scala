@@ -19,10 +19,10 @@ package uk.gov.hmrc.ups.controllers
 import org.joda.time.LocalDate
 import org.scalatest.concurrent.IntegrationPatience
 import play.api.libs.json.{JsArray, Json}
-import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
+import uk.gov.hmrc.play.test.UnitSpec
 import uk.gov.hmrc.ups.model.PrintPreference
 
-class UpdatedPrintSuppressionsControllerISpec extends UnitSpec with WithFakeApplication with TestServer with IntegrationPatience {
+class UpdatedPrintSuppressionsControllerISpec extends UnitSpec with TestServer with IntegrationPatience {
 
   "list" should {
 
@@ -30,7 +30,7 @@ class UpdatedPrintSuppressionsControllerISpec extends UnitSpec with WithFakeAppl
       val response = get(`/preferences/sa/individual/print-suppression`(Some(yesterdayAsString), None, None))
       private val jsonBody = Json.parse(response.body)
       (jsonBody \ "pages").as[Int] shouldBe 0
-      jsonBody \ "updates" shouldBe JsArray()
+      (jsonBody \ "updates").as[JsArray].value.size shouldBe 0
     }
 
     "return all available print suppression change events occurred that day" in new TestSetup {
@@ -127,7 +127,7 @@ class UpdatedPrintSuppressionsControllerISpec extends UnitSpec with WithFakeAppl
 
       private val jsonBody = Json.parse(response.body)
       (jsonBody \ "pages").as[Int] shouldBe 0
-      jsonBody \ "updates" shouldBe JsArray()
+      (jsonBody \ "updates").as[JsArray].value.size shouldBe 0
     }
 
     "return 400 when the limit is not a number between 1 and 20,000" in {
