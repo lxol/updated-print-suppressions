@@ -1,7 +1,7 @@
 
 # updated-print-suppressions
 
-[![Build Status](https://travis-ci.org/hmrc/updated-print-suppressions.svg?branch=master)](https://travis-ci.org/hmrc/updated-print-suppressions) [ ![Download](https://api.bintray.com/packages/hmrc/releases/updated-print-suppressions/images/download.svg) ](https://bintray.com/hmrc/releases/updated-print-suppressions/_latestVersion)
+[ ![Download](https://api.bintray.com/packages/hmrc/releases/updated-print-suppressions/images/download.svg) ](https://bintray.com/hmrc/releases/updated-print-suppressions/_latestVersion)
 
 Microservice responsible for the print suppression preference of a customer.
 
