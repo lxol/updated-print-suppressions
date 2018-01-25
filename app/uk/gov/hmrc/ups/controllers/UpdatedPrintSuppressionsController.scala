@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 HM Revenue & Customs
+ * Copyright 2018 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@ import play.api.libs.json.Json
 import play.api.mvc._
 import play.modules.reactivemongo.MongoDbConnection
 import reactivemongo.api.DefaultDB
-import uk.gov.hmrc.play.http.BadRequestException
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
 import uk.gov.hmrc.play.microservice.controller.BaseController
 import uk.gov.hmrc.ups.controllers.bind.PastLocalDateBindable
@@ -28,6 +27,7 @@ import uk.gov.hmrc.ups.model.{Limit, PastLocalDate, UpdatedPrintPreferences}
 import uk.gov.hmrc.ups.repository.{MongoCounterRepository, UpdatedPrintSuppressionsRepository}
 
 import scala.math.BigDecimal.RoundingMode
+import uk.gov.hmrc.http.BadRequestException
 
 trait UpdatedPrintSuppressionsController extends BaseController with MongoDbConnection {
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 HM Revenue & Customs
+ * Copyright 2018 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,9 +21,7 @@ import play.api.http.Status._
 import play.api.libs.iteratee.{Enumerator, Iteratee}
 import play.api.{Logger, Play}
 import play.modules.reactivemongo.MongoDbConnection
-import reactivemongo.json.collection.JSONCollection
 import uk.gov.hmrc.domain.SaUtr
-import uk.gov.hmrc.play.http.HeaderCarrier
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
 import uk.gov.hmrc.ups.connectors.{EntityResolverConnector, PreferencesConnector}
 import uk.gov.hmrc.ups.model.{PrintPreference, PulledItem}
@@ -32,6 +30,8 @@ import uk.gov.hmrc.workitem
 import uk.gov.hmrc.workitem.ProcessingStatus
 
 import scala.concurrent.{ExecutionContext, Future}
+import reactivemongo.play.json.collection.JSONCollection
+import uk.gov.hmrc.http.HeaderCarrier
 
 trait PreferencesProcessor {
 

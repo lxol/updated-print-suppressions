@@ -27,15 +27,11 @@ private object AppDependencies {
   def apply() = Seq(
     ws,
 
-    "uk.gov.hmrc"             %% "play-reactivemongo"     % "5.2.0",
-    "uk.gov.hmrc"             %% "microservice-bootstrap" % "5.13.0",
-    "uk.gov.hmrc"             %% "play-authorisation"     % "4.3.0",
-    "uk.gov.hmrc"             %% "play-config"            % "4.3.0",
+    "uk.gov.hmrc"             %% "play-reactivemongo"     % "6.1.0",
+    "uk.gov.hmrc"             %% "microservice-bootstrap" % "6.15.0",
     "uk.gov.hmrc"             %% "play-scheduling"        % "4.1.0",
-    "uk.gov.hmrc"             %% "play-health"            % "2.1.0",
-    "uk.gov.hmrc"             %% "logback-json-logger"    % "3.1.0",
-    "uk.gov.hmrc"             %% "domain"                 % "4.1.0",
-    "uk.gov.hmrc"             %% "work-item-repo"         % "4.1.0",
+    "uk.gov.hmrc"             %% "domain"                 % "5.1.0",
+    "uk.gov.hmrc"             %% "work-item-repo"         % "5.1.0",
 
     "uk.gov.hmrc"             %% "hmrctest"               % "2.3.0"             % "test, it",
     "uk.gov.hmrc"             %% "reactivemongo-test"     % "2.0.0"             % "test, it",
@@ -47,4 +43,3 @@ private object AppDependencies {
     "com.typesafe.play"       %% "play-test"              % PlayVersion.current % "test, it"
   )
 }
-

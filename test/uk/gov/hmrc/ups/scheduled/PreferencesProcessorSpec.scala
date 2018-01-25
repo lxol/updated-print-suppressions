@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 HM Revenue & Customs
+ * Copyright 2018 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@ import org.mockito.Matchers.{eq => argEq, _}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.mock.MockitoSugar
 import play.api.http.Status._
-import uk.gov.hmrc.play.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
 import uk.gov.hmrc.time.DateTimeUtils
 import uk.gov.hmrc.ups.connectors.{EntityResolverConnector, PreferencesConnector}
@@ -32,6 +31,7 @@ import uk.gov.hmrc.ups.utils.Generate
 
 import scala.concurrent.{ExecutionContext, Future}
 import uk.gov.hmrc.workitem
+import uk.gov.hmrc.http.HeaderCarrier
 
 class PreferencesProcessorSpec extends UnitSpec with ScalaFutures with MockitoSugar {
 
