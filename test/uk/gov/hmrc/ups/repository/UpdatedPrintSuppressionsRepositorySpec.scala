@@ -25,6 +25,8 @@ import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
 import uk.gov.hmrc.play.test.UnitSpec
 import uk.gov.hmrc.time.DateTimeUtils
 import uk.gov.hmrc.ups.model.PrintPreference
+import play.api.libs.json.{JsObject, JsValue}
+import reactivemongo.play.json.ImplicitBSONHandlers._
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -43,7 +45,7 @@ class UpdatedPrintSuppressionsRepositorySpec extends UnitSpec with MongoSpecSupp
   }
 
   override def beforeEach(): Unit = {
-    await(new UpdatedPrintSuppressionsRepository(TODAY, counterRepoStub).collection.drop())
+    await(mongoMessageRepository.collection.remove(JsObject(Map.empty[String, JsValue])))
     await(new MongoCounterRepository().removeAll())
   }
 
