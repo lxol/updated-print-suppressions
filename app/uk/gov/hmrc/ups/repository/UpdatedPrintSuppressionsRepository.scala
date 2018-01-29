@@ -20,6 +20,7 @@ import org.joda.time.{DateTime, LocalDate}
 import play.api.Logger
 import play.api.libs.json.Json
 import play.modules.reactivemongo.MongoDbConnection
+import reactivemongo.api.commands.CommandError
 import reactivemongo.api.indexes.{Index, IndexType}
 import reactivemongo.api.{DB, ReadPreference}
 import reactivemongo.bson.{BSONDocument, BSONObjectID, Macros}
@@ -110,7 +111,7 @@ class UpdatedPrintSuppressionsRepository(date: LocalDate, counterRepo: CounterRe
           }.
           map { _ => () }.
           recover {
-            case e: RuntimeException if e.getMessage.contains("11000") =>
+            case e: CommandError if e.getMessage.contains("11000") =>
               Logger.warn(s"failed to insert print preference $printPreference updated at ${updatedAt.getMillis}", e)
               ()
           }
