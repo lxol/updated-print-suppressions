@@ -7,12 +7,13 @@ import org.joda.time.LocalDate
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatestplus.play.OneServerPerSuite
+import play.api.libs.json.{JsObject, JsValue}
 import play.api.test.FakeApplication
 import reactivemongo.play.json.collection.JSONCollection
 import uk.gov.hmrc.mongo.MongoSpecSupport
 import uk.gov.hmrc.play.test.UnitSpec
 import uk.gov.hmrc.ups.repository.{MongoCounterRepository, UpdatedPrintSuppressions}
-
+import reactivemongo.play.json.ImplicitBSONHandlers._
 import scala.concurrent.ExecutionContext.Implicits.global
 
 abstract class UpdatedPrintSuppressionTestServer(override val databaseName: String = "updated-print-suppression-ispec")
@@ -59,11 +60,8 @@ abstract class UpdatedPrintSuppressionTestServer(override val databaseName: Stri
 
   override def beforeEach(): Unit = {
     WireMock.reset()
-    await(
-      upsCollection.drop().flatMap { _ =>
-        MongoCounterRepository().removeAll()
-      }
-    )
+    await(upsCollection.remove(JsObject(Map.empty[String,JsValue])))
+    await(MongoCounterRepository().removeAll())
   }
 
 }

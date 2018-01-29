@@ -32,7 +32,6 @@ private object AppDependencies {
     "uk.gov.hmrc"             %% "play-scheduling"        % "4.1.0",
     "uk.gov.hmrc"             %% "domain"                 % "5.1.0",
     "uk.gov.hmrc"             %% "work-item-repo"         % "5.1.0",
-
     "uk.gov.hmrc"             %% "hmrctest"               % "2.3.0"             % "test, it",
     "uk.gov.hmrc"             %% "reactivemongo-test"     % "3.0.0"             % "test, it",
     "org.mockito"             %  "mockito-all"            % "1.9.5"             % "test, it",
