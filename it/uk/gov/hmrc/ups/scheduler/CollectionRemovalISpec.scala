@@ -5,8 +5,8 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.{Eventually, IntegrationPatience, ScalaFutures}
 import play.api.test.FakeApplication
 import uk.gov.hmrc.ups.scheduled.RemoveOlderCollections
-// DO NOT DELETE reactivemongo.json.ImplicitBSONHandlers._ even if your IDE tells you it is unnecessary
-import reactivemongo.json.ImplicitBSONHandlers._
+// DO NOT DELETE reactivemongo.play.json.ImplicitBSONHandlers._ even if your IDE tells you it is unnecessary
+import reactivemongo.play.json.ImplicitBSONHandlers._
 import uk.gov.hmrc.mongo.MongoSpecSupport
 import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
 import uk.gov.hmrc.ups.config.Jobs

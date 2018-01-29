@@ -34,7 +34,7 @@ private object AppDependencies {
     "uk.gov.hmrc"             %% "work-item-repo"         % "5.1.0",
 
     "uk.gov.hmrc"             %% "hmrctest"               % "2.3.0"             % "test, it",
-    "uk.gov.hmrc"             %% "reactivemongo-test"     % "2.0.0"             % "test, it",
+    "uk.gov.hmrc"             %% "reactivemongo-test"     % "3.0.0"             % "test, it",
     "org.mockito"             %  "mockito-all"            % "1.9.5"             % "test, it",
     "com.github.tomakehurst"  %  "wiremock"               % "1.56"              % "test, it",
     "org.scalatest"           %% "scalatest"              % "2.2.6"             % "test, it",
