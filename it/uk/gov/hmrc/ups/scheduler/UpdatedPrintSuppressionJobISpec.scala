@@ -14,12 +14,10 @@ import uk.gov.hmrc.ups.model.PrintPreference
 import uk.gov.hmrc.ups.repository.UpdatedPrintSuppressions
 import uk.gov.hmrc.ups.utils.Generate
 import uk.gov.hmrc.workitem.{PermanentlyFailed, Succeeded}
-
+import reactivemongo.play.json.ImplicitBSONHandlers._
 import scala.concurrent.ExecutionContext.Implicits.global
 
 class UpdatedPrintSuppressionJobISpec extends UpdatedPrintSuppressionTestServer {
-
-  import reactivemongo.json.ImplicitBSONHandlers._
 
   "UpdatedPrintSuppression job" should {
 

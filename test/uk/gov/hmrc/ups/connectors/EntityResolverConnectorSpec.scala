@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 HM Revenue & Customs
+ * Copyright 2018 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,10 +22,10 @@ import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.mock.MockitoSugar
 import play.api.http.Status
 import play.api.libs.json.Json
-import uk.gov.hmrc.play.http.{HeaderCarrier, HttpGet, HttpResponse}
 import uk.gov.hmrc.play.test.UnitSpec
 import uk.gov.hmrc.ups.model.Entity
 import uk.gov.hmrc.ups.utils.Generate
+import uk.gov.hmrc.http.{ HeaderCarrier, HttpGet, HttpResponse }
 
 
 class EntityResolverConnectorSpec extends UnitSpec with MockitoSugar with ScalaFutures with IntegrationPatience {

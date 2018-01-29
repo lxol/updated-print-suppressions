@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 HM Revenue & Customs
+ * Copyright 2018 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@ package uk.gov.hmrc.ups.controllers.admin
 import org.joda.time.LocalDate
 import play.api.mvc.{Action, QueryStringBindable}
 import play.modules.reactivemongo.MongoDbConnection
-import uk.gov.hmrc.play.http.HeaderCarrier
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
 import uk.gov.hmrc.time.DateTimeUtils
 import uk.gov.hmrc.ups.controllers.UpdatedPrintSuppressionsController
@@ -28,6 +27,7 @@ import uk.gov.hmrc.ups.controllers.bind.PastLocalDateBindable
 import uk.gov.hmrc.ups.model.{PastLocalDate, PrintPreference}
 import uk.gov.hmrc.ups.repository.{MongoCounterRepository, UpdatedPrintSuppressionsRepository}
 import uk.gov.hmrc.ups.scheduled.PreferencesProcessor
+import uk.gov.hmrc.http.HeaderCarrier
 
 trait AdminController extends UpdatedPrintSuppressionsController {
 

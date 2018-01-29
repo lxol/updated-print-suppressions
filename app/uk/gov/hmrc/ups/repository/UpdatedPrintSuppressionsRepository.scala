@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 HM Revenue & Customs
+ * Copyright 2018 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,10 +20,12 @@ import org.joda.time.{DateTime, LocalDate}
 import play.api.Logger
 import play.api.libs.json.Json
 import play.modules.reactivemongo.MongoDbConnection
+import reactivemongo.api.commands.CommandError
 import reactivemongo.api.indexes.{Index, IndexType}
 import reactivemongo.api.{DB, ReadPreference}
 import reactivemongo.bson.{BSONDocument, BSONObjectID, Macros}
-import reactivemongo.json.collection.JSONCollection
+import reactivemongo.play.json.ImplicitBSONHandlers._
+import reactivemongo.play.json.collection.JSONCollection
 import uk.gov.hmrc.mongo.ReactiveRepository
 import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 import uk.gov.hmrc.ups.model.PrintPreference
@@ -109,7 +111,7 @@ class UpdatedPrintSuppressionsRepository(date: LocalDate, counterRepo: CounterRe
           }.
           map { _ => () }.
           recover {
-            case e: RuntimeException if e.getMessage.contains("11000") =>
+            case e: CommandError if e.getMessage.contains("11000") =>
               Logger.warn(s"failed to insert print preference $printPreference updated at ${updatedAt.getMillis}", e)
               ()
           }

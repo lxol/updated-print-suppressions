@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 HM Revenue & Customs
+ * Copyright 2018 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,14 +19,16 @@ package uk.gov.hmrc.ups.repository
 import org.joda.time.{DateTime, LocalDate}
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
+import play.api.libs.json.{JsObject, JsValue}
 import uk.gov.hmrc.mongo.MongoSpecSupport
-import uk.gov.hmrc.play.http.HeaderCarrier
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
+import reactivemongo.play.json.ImplicitBSONHandlers._
 import uk.gov.hmrc.play.test.UnitSpec
 import uk.gov.hmrc.time.DateTimeUtils
 import uk.gov.hmrc.ups.model.PrintPreference
 
 import scala.concurrent.{ExecutionContext, Future}
+import uk.gov.hmrc.http.HeaderCarrier
 
 class UpdatedPrintSuppressionsRepositorySpec extends UnitSpec with MongoSpecSupport with BeforeAndAfterEach with ScalaFutures with IntegrationPatience {
   implicit val hc = HeaderCarrier()
@@ -43,7 +45,7 @@ class UpdatedPrintSuppressionsRepositorySpec extends UnitSpec with MongoSpecSupp
   }
 
   override def beforeEach(): Unit = {
-    await(new UpdatedPrintSuppressionsRepository(TODAY, counterRepoStub).collection.drop())
+    await(new UpdatedPrintSuppressionsRepository(TODAY, counterRepoStub).collection.remove(JsObject(Map.empty[String,JsValue])))
     await(new MongoCounterRepository().removeAll())
   }
 
@@ -109,6 +111,21 @@ class UpdatedPrintSuppressionsRepositorySpec extends UnitSpec with MongoSpecSupp
       ).futureValue shouldBe Some(List("something"))
     }
 
+    "not throw an duplicate key error with near simultaneous confirms" in {
+      val utr: String = "11111111"
+      val list = 1 until 10
+
+      val repository = new UpdatedPrintSuppressionsRepository(TODAY, counterRepoStub)
+
+      await(
+       Future.sequence(list.map(_ =>
+         repository.insert(PrintPreference(utr, "someType", List("1")), now))
+       ).size
+     )
+      repository.findAll().map(
+        _.find(_.printPreference.id == utr).map(_.printPreference.formIds)
+      ).futureValue shouldBe Some(List("1"))
+    }
   }
 
   "The counter repository" should {

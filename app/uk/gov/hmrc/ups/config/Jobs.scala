@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 HM Revenue & Customs
+ * Copyright 2018 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,13 +18,13 @@ package uk.gov.hmrc.ups.config
 
 import play.api.{Logger, Play}
 import uk.gov.hmrc.play.config.RunMode
-import uk.gov.hmrc.play.http.HeaderCarrier
 import uk.gov.hmrc.play.scheduling.{ExclusiveScheduledJob, ScheduledJob}
 import uk.gov.hmrc.ups.scheduled.{PreferencesProcessor, RemoveOlderCollections}
 import uk.gov.hmrc.ups.scheduled._
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
+import uk.gov.hmrc.http.HeaderCarrier
 
 object Jobs {
 

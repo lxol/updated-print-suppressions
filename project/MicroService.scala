@@ -29,6 +29,7 @@ trait MicroService {
       libraryDependencies ++= appDependencies,
       parallelExecution in Test := false,
       fork in Test := false,
+      scalaVersion := "2.11.11",
       retrieveManaged := true,
       scalacOptions ++= List(
         "-feature",

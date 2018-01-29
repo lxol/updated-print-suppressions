@@ -5,7 +5,7 @@ import com.github.tomakehurst.wiremock.stubbing.Scenario
 import org.joda.time.DateTime
 import org.skyscreamer.jsonassert.JSONCompareMode
 import play.api.libs.json.Json
-import uk.gov.hmrc.play.controllers.RestFormats
+import uk.gov.hmrc.http.controllers.RestFormats
 import uk.gov.hmrc.ups.model.EntityId
 import uk.gov.hmrc.workitem.{InProgress, ProcessingStatus}
 

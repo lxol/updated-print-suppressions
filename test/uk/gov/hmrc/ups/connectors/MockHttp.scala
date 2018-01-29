@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 HM Revenue & Customs
+ * Copyright 2018 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,22 +18,21 @@ package uk.gov.hmrc.ups.connectors
 
 import org.scalatest.mock.MockitoSugar
 import play.api.libs.json.Writes
-import uk.gov.hmrc.play.http.{HeaderCarrier, HttpGet, HttpPost, HttpResponse}
+import uk.gov.hmrc.http.{HeaderCarrier, HttpGet, HttpPost, HttpResponse}
 
 import scala.concurrent.Future
+import uk.gov.hmrc.ups.config.WSHttp
 
 trait MockHttpGet extends MockitoSugar {
   val httpWrapper = mock[HttpWrapper]
 
-  val http = new HttpGet {
-    override protected def doGet(url: String)(implicit hc: HeaderCarrier) =
+  val http = new HttpGet with WSHttp {
+    override def doGet(url: String)(implicit hc: HeaderCarrier) =
       Future.successful(httpWrapper.getF(url))
-
-    override val hooks = NoneRequired
   }
 
   class HttpWrapper {
-    def getF[T](uri: String): HttpResponse = HttpResponse.apply(200, None)
+    def getF[T](uri: String): HttpResponse = HttpResponse(200, None)
 
   }
 }
@@ -41,15 +40,17 @@ trait MockHttpGet extends MockitoSugar {
 trait MockHttpPost extends MockitoSugar {
   val httpWrapper = mock[HttpWrapper]
 
-  val http = new HttpPost {
-    override protected def doPost[A](url: String, body: A, headers: Seq[(String,String)])(implicit wts: Writes[A], hc: HeaderCarrier): Future[HttpResponse] = Future.successful(httpWrapper.postF(url))
-    override val hooks = NoneRequired
+  val http = new HttpPost with WSHttp {
 
-    protected def doPostString(url: String, body: String, headers: Seq[(String, String)])(implicit hc: HeaderCarrier): Future[HttpResponse] = ???
+    override val hooks = Seq(AuditingHook)
 
-    protected def doFormPost(url: String, body: Map[String, Seq[String]])(implicit hc: HeaderCarrier): Future[HttpResponse] = ???
+    override def doPost[A](url: String, body: A, headers: Seq[(String,String)])(implicit wts: Writes[A], hc: HeaderCarrier): Future[HttpResponse] = Future.successful(httpWrapper.postF(url))
 
-    protected def doEmptyPost[A](url: String)(implicit hc: HeaderCarrier): Future[HttpResponse] = ???
+    override def doPostString(url: String, body: String, headers: Seq[(String, String)])(implicit hc: HeaderCarrier): Future[HttpResponse] = ???
+
+    override def doFormPost(url: String, body: Map[String, Seq[String]])(implicit hc: HeaderCarrier): Future[HttpResponse] = ???
+
+    override def doEmptyPost[A](url: String)(implicit hc: HeaderCarrier): Future[HttpResponse] = ???
   }
 
   class HttpWrapper {
