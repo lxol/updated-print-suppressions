@@ -4,12 +4,16 @@ import sbt._
 import uk.gov.hmrc.sbtdistributables.SbtDistributablesPlugin._
 import play.routes.compiler.StaticRoutesGenerator
 import play.sbt.routes.RoutesKeys.routesGenerator
+import uk.gov.hmrc.{SbtArtifactory, SbtAutoBuildPlugin}
+import uk.gov.hmrc.versioning.SbtGitVersioning
+import uk.gov.hmrc.sbtdistributables.SbtDistributablesPlugin
 
 trait MicroService {
 
   import uk.gov.hmrc._
   import DefaultBuildSettings._
-  import TestPhases._
+  import TestPhases.oneForkedJvmPerTest
+  import uk.gov.hmrc.versioning.SbtGitVersioning.autoImport.majorVersion
 
   val appName: String
 
@@ -18,6 +22,9 @@ trait MicroService {
   lazy val playSettings: Seq[Setting[_]] = Seq.empty
 
   lazy val microservice = Project(appName, file("."))
+    .enablePlugins(play.sbt.PlayScala, SbtAutoBuildPlugin, SbtGitVersioning, SbtDistributablesPlugin, SbtArtifactory)
+    .settings( majorVersion := 2 )
+
     .enablePlugins(Seq(play.sbt.PlayScala) ++ plugins: _*)
     .settings(playSettings: _*)
     .settings(scalaSettings: _*)
@@ -25,7 +32,6 @@ trait MicroService {
     .settings(defaultSettings(): _*)
     .settings(
       targetJvm := "jvm-1.8",
-      scalaVersion := "2.11.8",
       libraryDependencies ++= appDependencies,
       parallelExecution in Test := false,
       fork in Test := false,
@@ -48,7 +54,6 @@ trait MicroService {
       routesGenerator := StaticRoutesGenerator
     )
     .settings(
-      resolvers += Resolver.bintrayRepo("hmrc", "releases"),
       resolvers += Resolver.jcenterRepo
     )
 }
