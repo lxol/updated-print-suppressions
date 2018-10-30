@@ -18,13 +18,14 @@ package uk.gov.hmrc.ups.config
 
 import play.api.{Logger, Play}
 import uk.gov.hmrc.play.config.RunMode
-import uk.gov.hmrc.play.scheduling.{ExclusiveScheduledJob, ScheduledJob}
+import uk.gov.hmrc.play.scheduling.{LockedScheduledJob, ExclusiveScheduledJob, ScheduledJob}
 import uk.gov.hmrc.ups.scheduled.{PreferencesProcessor, RemoveOlderCollections}
 import uk.gov.hmrc.ups.scheduled._
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import uk.gov.hmrc.http.HeaderCarrier
+import org.joda.time.{Duration => JodaDuration}
 
 object Jobs {
 
@@ -69,20 +70,24 @@ object Jobs {
     lazy val interval = durationFromConfig("interval")
   }
 
-  object UpdatedPrintSuppressionJob extends ExclusiveScheduledJob with DurationFromConfig {
+  object UpdatedPrintSuppressionJob extends LockedScheduledJob with DurationFromConfig {
 
-    def executeInMutex(implicit ec: ExecutionContext): Future[UpdatedPrintSuppressionJob.Result] =
+    override lazy val releaseLockAfter = JodaDuration.standardMinutes(10)
+
+    def executeInLock(implicit ec: ExecutionContext): Future[UpdatedPrintSuppressionJob.Result] = {
+      Logger.info(s"Start UpdatedPrintSuppressionJob")
       PreferencesProcessor.run(HeaderCarrier()).
         map { totals =>
           Result(
             s"UpdatedPrintSuppressions: ${totals.processed} items processed with ${totals.failed} failures"
           )
         }
+    }
 
     override val name: String = "updatedPrintSuppressions"
   }
 
-  trait DurationFromConfig { self: ExclusiveScheduledJob =>
+  trait DurationFromConfig { self: LockedScheduledJob =>
     private def durationFromConfig(propertyKey: String) = {
       Play.current.configuration.getMilliseconds(s"$env.scheduling.$name.$propertyKey")
         .getOrElse(throw new IllegalStateException(s"Config key $env.scheduling.$name.$propertyKey missing"))

@@ -29,7 +29,7 @@ private object AppDependencies {
 
     "uk.gov.hmrc"             %% "play-reactivemongo"     % "6.1.0",
     "uk.gov.hmrc"             %% "microservice-bootstrap" % "6.18.0",
-    "uk.gov.hmrc"             %% "play-scheduling"        % "4.1.0",
+    "uk.gov.hmrc"             %% "play-scheduling"        % "5.2.0",
     "uk.gov.hmrc"             %% "domain"                 % "5.1.0",
     "uk.gov.hmrc"             %% "work-item-repo"         % "5.1.0",
     "uk.gov.hmrc"             %% "hmrctest"               % "2.3.0"             % "test, it",
