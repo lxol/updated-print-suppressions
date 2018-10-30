@@ -32,7 +32,7 @@ class UpdatedPrintSuppressionJobISpec extends UpdatedPrintSuppressionTestServer 
       stubSetStatus(entityId, expectedStatusOnPreference, 200)
       stubPullUpdatedPrintSuppressionWithNoResponseBody(expectedStatusOnPreference)
 
-      await(Jobs.UpdatedPrintSuppressionJob.executeInMutex)
+      await(Jobs.UpdatedPrintSuppressionJob.executeInLock)
 
       val ups = await(upsCollection.find(Json.obj("printPreference.id" -> utr.value)).one[UpdatedPrintSuppressions]).get
 
@@ -51,7 +51,7 @@ class UpdatedPrintSuppressionJobISpec extends UpdatedPrintSuppressionTestServer 
       stubSetStatus(entityId, expectedStatusOnPreference, 200)
       stubPullUpdatedPrintSuppressionWithNoResponseBody(expectedStatusOnPreference)
 
-      await(Jobs.UpdatedPrintSuppressionJob.executeInMutex)
+      await(Jobs.UpdatedPrintSuppressionJob.executeInLock)
 
       await(upsCollection.count()) shouldBe 0
     }
@@ -66,7 +66,7 @@ class UpdatedPrintSuppressionJobISpec extends UpdatedPrintSuppressionTestServer 
       stubSetStatus(entityId, expectedStatusOnPreference, 200)
       stubPullUpdatedPrintSuppressionWithNoResponseBody(expectedStatusOnPreference)
 
-      await(Jobs.UpdatedPrintSuppressionJob.executeInMutex)
+      await(Jobs.UpdatedPrintSuppressionJob.executeInLock)
 
       await(upsCollection.count()) shouldBe 0
     }
@@ -78,7 +78,7 @@ class UpdatedPrintSuppressionJobISpec extends UpdatedPrintSuppressionTestServer 
           .willReturn(aResponse().withStatus(500))
       )
 
-      await(Jobs.UpdatedPrintSuppressionJob.executeInMutex)
+      await(Jobs.UpdatedPrintSuppressionJob.executeInLock)
 
       await(upsCollection.count()) shouldBe 0
     }
@@ -91,7 +91,7 @@ class UpdatedPrintSuppressionJobISpec extends UpdatedPrintSuppressionTestServer 
             .willReturn(aResponse().withFault(Fault.EMPTY_RESPONSE))
       )
 
-      await(Jobs.UpdatedPrintSuppressionJob.executeInMutex)
+      await(Jobs.UpdatedPrintSuppressionJob.executeInLock)
 
       await(upsCollection.count()) shouldBe 0
     }
@@ -103,7 +103,7 @@ class UpdatedPrintSuppressionJobISpec extends UpdatedPrintSuppressionTestServer 
       stubFirstPullUpdatedPrintSuppression(entityId, updatedAt)
       stubExceptionOnGetEntity(entityId)
 
-      await(Jobs.UpdatedPrintSuppressionJob.executeInMutex)
+      await(Jobs.UpdatedPrintSuppressionJob.executeInLock)
 
       await(upsCollection.count()) shouldBe 0
     }
@@ -119,7 +119,7 @@ class UpdatedPrintSuppressionJobISpec extends UpdatedPrintSuppressionTestServer 
       stubSetStatus(entityId, expectedStatusOnPreference, 500)
       stubPullUpdatedPrintSuppressionWithNoResponseBody(expectedStatusOnPreference)
 
-      await(Jobs.UpdatedPrintSuppressionJob.executeInMutex)
+      await(Jobs.UpdatedPrintSuppressionJob.executeInLock)
 
       await(upsCollection.count()) shouldBe 1
     }
