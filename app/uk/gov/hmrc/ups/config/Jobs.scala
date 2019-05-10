@@ -16,9 +16,9 @@
 
 package uk.gov.hmrc.ups.config
 
-import play.api.{Logger, Play}
+import play.api.{Configuration, Logger, Play}
 import uk.gov.hmrc.play.config.RunMode
-import uk.gov.hmrc.play.scheduling.{LockedScheduledJob, ExclusiveScheduledJob, ScheduledJob}
+import uk.gov.hmrc.play.scheduling.{ExclusiveScheduledJob, LockedScheduledJob, ScheduledJob}
 import uk.gov.hmrc.ups.scheduled.{PreferencesProcessor, RemoveOlderCollections}
 import uk.gov.hmrc.ups.scheduled._
 
@@ -26,12 +26,13 @@ import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import uk.gov.hmrc.http.HeaderCarrier
 import org.joda.time.{Duration => JodaDuration}
+import play.api.Mode.Mode
+import play.modules.reactivemongo.ReactiveMongoComponent
+import uk.gov.hmrc.lock.{LockMongoRepository, LockRepository}
 
 object Jobs {
 
-  import uk.gov.hmrc.play.config.RunMode.env
-
-  object RemoveOlderCollectionsJob extends ExclusiveScheduledJob {
+  object RemoveOlderCollectionsJob extends ExclusiveScheduledJob with RunMode {
 
     override def executeInMutex(implicit ec: ExecutionContext): Future[RemoveOlderCollectionsJob.Result] =
       RemoveOlderCollections.removeOlderThan(durationInDays).map { totals =>
@@ -68,6 +69,10 @@ object Jobs {
 
     lazy val initialDelay = durationFromConfig("initialDelay")
     lazy val interval = durationFromConfig("interval")
+
+    override protected def mode: Mode = Play.current.mode
+
+    override protected def runModeConfiguration: Configuration = Play.current.configuration
   }
 
   object UpdatedPrintSuppressionJob extends LockedScheduledJob with DurationFromConfig {
@@ -85,9 +90,19 @@ object Jobs {
     }
 
     override val name: String = "updatedPrintSuppressions"
+
+    override val lockRepository: LockRepository = LockMongoRepository(
+        Play.current.injector.instanceOf[ReactiveMongoComponent].mongoConnector.db
+    )
+
+    override protected def mode: Mode = Play.current.mode
+
+
+    override protected def runModeConfiguration: Configuration = Play.current.configuration
+
   }
 
-  trait DurationFromConfig { self: LockedScheduledJob =>
+  trait DurationFromConfig extends RunMode { self: LockedScheduledJob =>
     private def durationFromConfig(propertyKey: String) = {
       Play.current.configuration.getMilliseconds(s"$env.scheduling.$name.$propertyKey")
         .getOrElse(throw new IllegalStateException(s"Config key $env.scheduling.$name.$propertyKey missing"))

@@ -16,7 +16,10 @@
 
 package uk.gov.hmrc.ups.connectors
 
+import akka.actor.ActorSystem
+import com.typesafe.config.Config
 import org.scalatest.mock.MockitoSugar
+import play.api.Configuration
 import play.api.libs.json.Writes
 import uk.gov.hmrc.http.{HeaderCarrier, HttpGet, HttpPost, HttpResponse}
 
@@ -29,6 +32,12 @@ trait MockHttpGet extends MockitoSugar {
   val http = new HttpGet with WSHttp {
     override def doGet(url: String)(implicit hc: HeaderCarrier) =
       Future.successful(httpWrapper.getF(url))
+
+    override protected def appNameConfiguration: Configuration = ???
+
+    override protected def actorSystem: ActorSystem = ActorSystem("test-actor-system")
+
+    override protected def configuration: Option[Config] = None
   }
 
   class HttpWrapper {
@@ -40,7 +49,8 @@ trait MockHttpGet extends MockitoSugar {
 trait MockHttpPost extends MockitoSugar {
   val httpWrapper = mock[HttpWrapper]
 
-  val http = new HttpPost with WSHttp {
+  val http = //mock[HttpPost]
+      new HttpPost with WSHttp {
 
     override val hooks = Seq(AuditingHook)
 
@@ -51,6 +61,12 @@ trait MockHttpPost extends MockitoSugar {
     override def doFormPost(url: String, body: Map[String, Seq[String]])(implicit hc: HeaderCarrier): Future[HttpResponse] = ???
 
     override def doEmptyPost[A](url: String)(implicit hc: HeaderCarrier): Future[HttpResponse] = ???
+
+    override protected def appNameConfiguration: Configuration = ???
+
+    override protected def actorSystem: ActorSystem = ActorSystem("test-actor-system")
+
+    override protected def configuration: Option[Config] = None
   }
 
   class HttpWrapper {

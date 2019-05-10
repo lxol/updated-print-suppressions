@@ -17,9 +17,10 @@
 package uk.gov.hmrc.ups.connectors
 
 import org.joda.time.{DateTime, Duration}
+import play.api.Mode.Mode
 import play.api.http.Status._
 import play.api.libs.json.{JsValue, Json}
-import play.api.{Logger, Play}
+import play.api.{Configuration, Logger, Play}
 import uk.gov.hmrc.play.config.ServicesConfig
 import uk.gov.hmrc.time.DateTimeUtils
 import uk.gov.hmrc.ups.config.WSHttp
@@ -83,4 +84,7 @@ object PreferencesConnector extends PreferencesConnector with ServicesConfig {
 
   lazy val http = WSHttp
 
+  override protected def mode: Mode = Play.current.mode
+
+  override protected def runModeConfiguration: Configuration = Play.current.configuration
 }

@@ -18,11 +18,12 @@ package uk.gov.hmrc.ups.config
 
 import com.typesafe.config.Config
 import net.ceedubs.ficus.Ficus._
+import play.api.Mode.Mode
 import play.api.{Application, Configuration, Play}
 import uk.gov.hmrc.play.config.{AppName, ControllerConfig, RunMode}
 import uk.gov.hmrc.play.microservice.bootstrap.DefaultMicroserviceGlobal
 import uk.gov.hmrc.play.scheduling.{RunningOfScheduledJobs, ScheduledJob}
-import uk.gov.hmrc.play.microservice.filters.{ AuditFilter, LoggingFilter, MicroserviceFilterSupport }
+import uk.gov.hmrc.play.microservice.filters.{AuditFilter, LoggingFilter, MicroserviceFilterSupport}
 
 object ControllerConfiguration extends ControllerConfig {
   lazy val controllerConfigs = Play.current.configuration.underlying.as[Config]("controllers")
@@ -31,6 +32,8 @@ object ControllerConfiguration extends ControllerConfig {
 object MicroserviceAuditFilter extends AuditFilter with AppName with MicroserviceFilterSupport {
   override val auditConnector = MicroserviceAuditConnector
   override def controllerNeedsAuditing(controllerName: String) = ControllerConfiguration.paramsForController(controllerName).needsAuditing
+
+  override protected def appNameConfiguration: Configuration = Play.current.configuration
 }
 
 object MicroserviceLoggingFilter extends LoggingFilter with MicroserviceFilterSupport {
@@ -53,4 +56,9 @@ object MicroserviceGlobal extends DefaultMicroserviceGlobal with RunMode with Ru
     Jobs.RemoveOlderCollectionsJob,
     Jobs.UpdatedPrintSuppressionJob
   )
+
+  override protected def mode: Mode = Play.current.mode
+
+  override protected def runModeConfiguration: Configuration = Play.current.configuration
+
 }
