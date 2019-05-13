@@ -29,13 +29,15 @@ import uk.gov.hmrc.ups.config.WSHttp
 trait MockHttpGet extends MockitoSugar {
   val httpWrapper = mock[HttpWrapper]
 
+  private val anActorSystem = ActorSystem("test-actor-system")
+
   val http = new HttpGet with WSHttp {
     override def doGet(url: String)(implicit hc: HeaderCarrier) =
       Future.successful(httpWrapper.getF(url))
 
     override protected def appNameConfiguration: Configuration = ???
 
-    override protected def actorSystem: ActorSystem = ActorSystem("test-actor-system")
+    override protected def actorSystem: ActorSystem = anActorSystem
 
     override protected def configuration: Option[Config] = None
   }
@@ -48,6 +50,8 @@ trait MockHttpGet extends MockitoSugar {
 
 trait MockHttpPost extends MockitoSugar {
   val httpWrapper = mock[HttpWrapper]
+
+  private val anActorSystem = ActorSystem("test-actor-system")
 
   val http = //mock[HttpPost]
       new HttpPost with WSHttp {
@@ -64,7 +68,7 @@ trait MockHttpPost extends MockitoSugar {
 
     override protected def appNameConfiguration: Configuration = ???
 
-    override protected def actorSystem: ActorSystem = ActorSystem("test-actor-system")
+    override protected def actorSystem: ActorSystem = anActorSystem
 
     override protected def configuration: Option[Config] = None
   }
