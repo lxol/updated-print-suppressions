@@ -4,7 +4,7 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatestplus.play.{OneServerPerSuite, WsScalaTestClient}
 import play.api.inject.guice.GuiceApplicationBuilder
-import play.api.libs.ws.WSRequest
+import play.api.libs.ws.{WSClient, WSRequest}
 import uk.gov.hmrc.play.test.UnitSpec
 
 trait DatabaseName {
@@ -25,6 +25,8 @@ trait TestServer
       "application.router" -> "testOnlyDoNotUseInAppConf.Routes"
     ))
     .build()
+
+  implicit lazy val wsClient: WSClient = app.injector.instanceOf[WSClient]
 
 
   def `/preferences/sa/individual/print-suppression`(updatedOn: Option[String], offset: Option[String], limit: Option[String], isAdmin: Boolean = false) = {

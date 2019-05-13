@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 HM Revenue & Customs
+ * Copyright 2019 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,13 @@
 
 package uk.gov.hmrc.ups.connectors
 
+import play.api.{Configuration, Play}
+import play.api.Mode.Mode
 import play.api.http.Status._
 import uk.gov.hmrc.play.config.ServicesConfig
 import uk.gov.hmrc.ups.config.WSHttp
 import uk.gov.hmrc.ups.model.{Entity, EntityId}
-import uk.gov.hmrc.http.{ HeaderCarrier, HttpGet, HttpReads, HttpResponse }
+import uk.gov.hmrc.http.{HeaderCarrier, HttpGet, HttpReads, HttpResponse}
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
 
 
@@ -48,4 +50,8 @@ object EntityResolverConnector extends EntityResolverConnector with ServicesConf
   lazy val http: HttpGet = WSHttp
 
   def serviceUrl: String = baseUrl("entity-resolver")
+
+  override protected def mode: Mode = Play.current.mode
+
+  override protected def runModeConfiguration: Configuration = Play.current.configuration
 }
