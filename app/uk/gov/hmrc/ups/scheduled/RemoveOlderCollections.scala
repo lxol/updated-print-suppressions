@@ -33,10 +33,6 @@ trait RemoveOlderCollections extends DeleteCollectionFilter with SelectAndRemove
 
 }
 
-object RemoveOlderCollections extends RemoveOlderCollections {
-  val repository = UpdatedPrintSuppressionsDatabase()
-}
-
 trait SelectAndRemove {
 
   def compose(listCollections: () => Future[List[String]],

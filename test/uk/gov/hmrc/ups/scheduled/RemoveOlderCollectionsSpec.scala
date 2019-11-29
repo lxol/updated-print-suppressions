@@ -18,25 +18,25 @@ package uk.gov.hmrc.ups.scheduled
 
 import org.joda.time.LocalDate
 import org.scalatest.concurrent.ScalaFutures
-import uk.gov.hmrc.play.test.UnitSpec
+import org.scalatestplus.play.PlaySpec
 import uk.gov.hmrc.ups.repository.UpdatedPrintSuppressions
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-class RemoveOlderCollectionsSpec extends UnitSpec with ScalaFutures {
+class RemoveOlderCollectionsSpec extends PlaySpec with ScalaFutures {
 
   "remove older collections" should {
     "remove collection older than n days" in new SetUp {
-      val expectedResults = (2 to 4).map { x => repoName(x) }.toList
+      private val expectedResults = (2 to 4).map { x => repoName(x) }.toList
 
-      val totals =
+      private val totals =
         compose(listRepoNames, removeRepoColls(expectedResults, _), filterUpsCollectionsOnly(_, expirationPeriod)).
           futureValue
 
-      totals.failures shouldBe List.empty
-      totals.successes.map { _.collectionName } should contain only(expectedResults: _*)
+      totals.failures mustBe List.empty
+      totals.successes.map { _.collectionName } must contain only(expectedResults: _*)
     }
 
     "perform no deletions when provided an empty list of names" in new SetUp {
@@ -44,7 +44,7 @@ class RemoveOlderCollectionsSpec extends UnitSpec with ScalaFutures {
         () => Future.successful(List.empty[String]),
         value => Future { () },
         filterUpsCollectionsOnly(_, 0 days)
-      ).futureValue shouldBe Totals(List.empty, List.empty)
+      ).futureValue mustBe Totals(List.empty, List.empty)
     }
 
     "removes collections independently, allowing for partial success" in new SetUp {
@@ -53,14 +53,14 @@ class RemoveOlderCollectionsSpec extends UnitSpec with ScalaFutures {
           map { totals => (totals.failures.map(_.collectionName), totals.successes.map(_.collectionName)) }.
           futureValue
 
-      failures should contain only(repoName(2), repoName(4))
-      successes should contain only repoName(3)
+      failures must contain only(repoName(2), repoName(4))
+      successes must contain only repoName(3)
     }
 
   }
 
   trait SetUp extends SelectAndRemove with FilterSetUp {
-    def listRepoNames() = Future.successful((0 to 4).map { increment => repoName(increment) }.toList)
+    def listRepoNames(): Future[List[String]] = Future.successful((0 to 4).map { increment => repoName(increment) }.toList)
 
     def removeRepoColls(successfulNames : List[String], valueToCheck : String) =
       if (successfulNames.contains(valueToCheck)) Future { () }
@@ -68,14 +68,14 @@ class RemoveOlderCollectionsSpec extends UnitSpec with ScalaFutures {
   }
 }
 
-class DeleteCollectionFilterSpec extends UnitSpec {
+class DeleteCollectionFilterSpec extends PlaySpec {
   "filter for UPS collection names" should {
     "return true if name matches updated_print_suppressions and is older than the expected duration" in new FilterSetUp {
-      filterUpsCollectionsOnly(repoName(3), expirationPeriod) shouldBe true
+      filterUpsCollectionsOnly(repoName(3), expirationPeriod) mustBe true
     }
 
     "return false if name matches updated_print_suppressions and is less than the expected duration" in new FilterSetUp {
-      filterUpsCollectionsOnly(repoName(1), expirationPeriod) shouldBe false
+      filterUpsCollectionsOnly(repoName(1), expirationPeriod) mustBe false
     }
 
     "throw exception if name does not match updated_print_suppressions" in new FilterSetUp {
@@ -84,6 +84,6 @@ class DeleteCollectionFilterSpec extends UnitSpec {
   }
 }
 trait FilterSetUp extends DeleteCollectionFilter {
-  val expirationPeriod = 2 days
+  val expirationPeriod: FiniteDuration = 2 days
   def repoName(daysToDecrement : Int) : String = UpdatedPrintSuppressions.repoNameTemplate(LocalDate.now().minusDays(daysToDecrement))
 }

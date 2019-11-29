@@ -18,12 +18,13 @@ package uk.gov.hmrc.ups.repository
 
 import org.joda.time.{DateTime, LocalDate}
 import play.api.Logger
-import play.api.libs.json.Json
-import play.modules.reactivemongo.MongoDbConnection
+import play.api.libs.json.{Format, Json, OFormat}
+import play.modules.reactivemongo.ReactiveMongoComponent
+import reactivemongo.api.Cursor.FailOnError
+import reactivemongo.api.ReadPreference
 import reactivemongo.api.commands.CommandError
 import reactivemongo.api.indexes.{Index, IndexType}
-import reactivemongo.api.{DB, ReadPreference}
-import reactivemongo.bson.{BSONDocument, BSONObjectID, Macros}
+import reactivemongo.bson.{BSONDocument, BSONObjectID}
 import reactivemongo.play.json.ImplicitBSONHandlers._
 import reactivemongo.play.json.collection.JSONCollection
 import uk.gov.hmrc.mongo.ReactiveRepository
@@ -38,29 +39,37 @@ case class UpdatedPrintSuppressions(_id: BSONObjectID,
                                     updatedAt: DateTime)
 
 object UpdatedPrintSuppressions {
-  implicit val idf = ReactiveMongoFormats.objectIdFormats
-  implicit val pp = PrintPreference.formats
-  implicit val dtf = ReactiveMongoFormats.dateTimeFormats
+  implicit val idf: Format[BSONObjectID] = ReactiveMongoFormats.objectIdFormats
+  implicit val pp: OFormat[PrintPreference] = PrintPreference.formats
+  implicit val dtf: Format[DateTime] = ReactiveMongoFormats.dateTimeFormats
 
-  implicit val formats = Json.format[UpdatedPrintSuppressions]
+  implicit val formats: OFormat[UpdatedPrintSuppressions] = Json.format[UpdatedPrintSuppressions]
 
   val datePattern = "yyyyMMdd"
 
-  def toString(date: LocalDate) = date.toString(datePattern)
+  def toString(date: LocalDate): String = date.toString(datePattern)
 
-  def repoNameTemplate(date: LocalDate) = s"updated_print_suppressions_${toString(date)}"
+  def repoNameTemplate(date: LocalDate):String = s"updated_print_suppressions_${toString(date)}"
 }
 
-class UpdatedPrintSuppressionsRepository(date: LocalDate, counterRepo: CounterRepository, mc: Option[JSONCollection] = None)
-                                        (implicit mongo: () => DB, ec: ExecutionContext)
-  extends ReactiveRepository[UpdatedPrintSuppressions, BSONObjectID](UpdatedPrintSuppressions.repoNameTemplate(date), mongo, UpdatedPrintSuppressions.formats, mc = mc) {
+
+class UpdatedPrintSuppressionsRepository(
+  mongoComponent: ReactiveMongoComponent,
+  date: LocalDate,
+  counterRepo: MongoCounterRepository,
+  mc: Option[JSONCollection] = None)(implicit ec: ExecutionContext)
+  extends ReactiveRepository[UpdatedPrintSuppressions, BSONObjectID](UpdatedPrintSuppressions.repoNameTemplate(date),
+    mongoComponent.mongoConnector.db, UpdatedPrintSuppressions.formats) {
+
+  Logger.error(s"Connection URI: ${mongoComponent.mongoConnector.mongoConnectionUri}")
 
   private val counterRepoDate = UpdatedPrintSuppressions.toString(date)
 
   override def indexes: Seq[Index] =
     Seq(
       Index(Seq("counter" -> IndexType.Ascending), name = Some("counterIdx"), unique = true, sparse = false),
-      Index(Seq("printPreference.id" -> IndexType.Ascending, "printPreference.idType" -> IndexType.Ascending), name = Some("uniquePreferenceId"), unique = true, sparse = false)
+      Index(Seq("printPreference.id" -> IndexType.Ascending,
+        "printPreference.idType" -> IndexType.Ascending), name = Some("uniquePreferenceId"), unique = true, sparse = false)
     )
 
   def find(offset: Long, limit: Int): Future[List[PrintPreference]] = {
@@ -72,7 +81,7 @@ class UpdatedPrintSuppressionsRepository(date: LocalDate, counterRepo: CounterRe
     val query = Json.obj("counter" -> Json.obj("$gte" -> from, "$lt" -> to))
     val e: Future[List[UpdatedPrintSuppressions]] = collection.find(query)
       .cursor[UpdatedPrintSuppressions](ReadPreference.primaryPreferred)
-      .collect[List]()
+      .collect[List](maxDocs = -1, FailOnError[List[UpdatedPrintSuppressions]]())
     e.map(_.map(ups => ups.printPreference))
   }
 
@@ -123,48 +132,12 @@ class UpdatedPrintSuppressionsRepository(date: LocalDate, counterRepo: CounterRe
 case class Counter(_id: BSONObjectID, name: String, value: Int)
 
 object Counter {
-  val formats = {
-    implicit val idf = ReactiveMongoFormats.objectIdFormats
+  val formats: OFormat[Counter] = {
+    implicit val idf: Format[BSONObjectID] = ReactiveMongoFormats.objectIdFormats
     Json.format[Counter]
   }
 }
 
 trait CounterRepository {
   def next(counterName:String)(implicit ec: ExecutionContext): Future[Int]
-}
-
-class MongoCounterRepository (implicit mongo: () => DB)
-  extends ReactiveRepository[Counter, BSONObjectID]("counters", mongo, Counter.formats, ReactiveMongoFormats.objectIdFormats) with CounterRepository {
-
-  override def indexes: Seq[Index] =
-    Seq(Index(Seq("name" -> IndexType.Ascending), name = Some("nameIdx"), unique = true, sparse = false))
-
-  def next(counterName:String)(implicit ec: ExecutionContext): Future[Int] = {
-
-    val update = collection.updateModifier(
-      update = BSONDocument(
-        "$setOnInsert" -> BSONDocument("name" -> counterName),
-        "$inc" -> BSONDocument("value" -> 1)),
-      fetchNewObject = true,
-      upsert = true
-    )
-
-    import collection.BatchCommands.FindAndModifyCommand.FindAndModifyResult
-    implicit val reader = Macros.reader[Counter]
-
-    val result: Future[FindAndModifyResult] = collection.findAndModify(
-      selector = BSONDocument("name" -> counterName),
-      modifier = update)
-
-    result.map(_.result[Counter]).map(opt => (Json.toJson(opt.get).as[Counter]).value)
-  }
-}
-
-object MongoCounterRepository extends MongoDbConnection{
-
-  private val repo =  new MongoCounterRepository()
-
-  def apply() : MongoCounterRepository = {
-    repo
-  }
 }

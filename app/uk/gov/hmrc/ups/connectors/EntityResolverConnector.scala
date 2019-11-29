@@ -16,42 +16,28 @@
 
 package uk.gov.hmrc.ups.connectors
 
-import play.api.{Configuration, Play}
-import play.api.Mode.Mode
+import javax.inject.{Inject, Singleton}
 import play.api.http.Status._
-import uk.gov.hmrc.play.config.ServicesConfig
-import uk.gov.hmrc.ups.config.WSHttp
+import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
+import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
+import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import uk.gov.hmrc.ups.model.{Entity, EntityId}
-import uk.gov.hmrc.http.{HeaderCarrier, HttpGet, HttpReads, HttpResponse}
-import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
 
+import scala.concurrent.{ExecutionContext, Future}
 
-trait EntityResolverConnector {
+@Singleton
+class EntityResolverConnector @Inject()(httpClient: HttpClient, servicesConfig: ServicesConfig)(implicit ec: ExecutionContext) {
 
-  implicit object optionalEntityReads extends HttpReads[Int Either Option[Entity]] {
-    override def read(method: String, url: String, response: HttpResponse): Int Either Option[Entity] = response.status match {
-      case NOT_FOUND => Right(None)
-      case OK => Right(Some(response.json.as[Entity]))
-      case _ => Left(response.status)
+  def getTaxIdentifiers(entityId: EntityId)(implicit hc: HeaderCarrier): Future[Either[Int,Option[Entity]]] = {
+    httpClient.GET[HttpResponse](s"$serviceUrl/entity-resolver/$entityId").map { response =>
+      response.status match {
+        case NOT_FOUND => Right(None)
+        case OK => Right(Some(response.json.as[Entity]))
+        case _ => Left(response.status)
+      }
     }
   }
 
-  def getTaxIdentifiers(entityId: EntityId)(implicit hc: HeaderCarrier) =
-    http.GET[Int Either Option[Entity]](s"$serviceUrl/entity-resolver/$entityId")
+  def serviceUrl: String = servicesConfig.baseUrl("entity-resolver")
 
-
-  def http: HttpGet
-
-  def serviceUrl: String
-
-}
-
-object EntityResolverConnector extends EntityResolverConnector with ServicesConfig {
-  lazy val http: HttpGet = WSHttp
-
-  def serviceUrl: String = baseUrl("entity-resolver")
-
-  override protected def mode: Mode = Play.current.mode
-
-  override protected def runModeConfiguration: Configuration = Play.current.configuration
 }

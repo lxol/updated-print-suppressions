@@ -16,64 +16,33 @@
 
 package uk.gov.hmrc.ups.controllers
 
-import play.api.libs.json.Json
+import javax.inject.{Inject, Singleton}
 import play.api.mvc._
-import play.modules.reactivemongo.MongoDbConnection
-import reactivemongo.api.DefaultDB
-import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
-import uk.gov.hmrc.play.microservice.controller.BaseController
+import play.modules.reactivemongo.ReactiveMongoComponent
+import uk.gov.hmrc.play.bootstrap.controller.BackendController
 import uk.gov.hmrc.ups.controllers.bind.PastLocalDateBindable
-import uk.gov.hmrc.ups.model.{Limit, PastLocalDate, UpdatedPrintPreferences}
-import uk.gov.hmrc.ups.repository.{MongoCounterRepository, UpdatedPrintSuppressionsRepository}
+import uk.gov.hmrc.ups.model.{Limit, PastLocalDate}
+import uk.gov.hmrc.ups.repository.MongoCounterRepository
 
-import scala.math.BigDecimal.RoundingMode
-import uk.gov.hmrc.http.BadRequestException
+import scala.concurrent.ExecutionContext
 
-trait UpdatedPrintSuppressionsController extends BaseController with MongoDbConnection {
+@Singleton
+class UpdatedPrintSuppressionsController @Inject()
+(mongoComponent: ReactiveMongoComponent, mongoCounterRepository: MongoCounterRepository, cc: ControllerComponents)
+(implicit ec: ExecutionContext) extends BackendController(cc) with UpdatedOn {
 
-  implicit val uppf = UpdatedPrintPreferences.formats
-
-  def localDateBinder : QueryStringBindable[PastLocalDate]
+  lazy override val reactiveMongoComponent: ReactiveMongoComponent = mongoComponent
+  lazy override val counterRepository: MongoCounterRepository = mongoCounterRepository
+  lazy override implicit val executionContext: ExecutionContext = ec
+  override val localDateBinder: QueryStringBindable[PastLocalDate] = PastLocalDateBindable(true)
 
   def list(optOffset: Option[Int], optLimit: Option[Limit]): Action[AnyContent] =
     Action.async { implicit request =>
-      localDateBinder.bind("updated-on", request.queryString) match {
-        case Some(Right(updatedOn)) =>
-          val repository = new UpdatedPrintSuppressionsRepository(updatedOn.value, MongoCounterRepository())
-          val limit = optLimit.getOrElse(Limit.max)
-          val offset = optOffset.getOrElse(1)
-          for {
-            count <- repository.count
-            updates <- repository.find(offset, limit.value)
-          } yield {
-            val pages: Int = (BigDecimal(count) / BigDecimal(limit.value)).setScale(0, RoundingMode.UP).intValue()
-            Ok(
-              Json.toJson(
-                UpdatedPrintPreferences(
-                  pages = pages,
-                  next = nextPageURL(updatedOn, limit, count, offset),
-                  updates = updates.map(_.convertIdType)
-                )
-              )
-            )
-          }
-
-        case None => throw new BadRequestException("updated-on is a mandatory parameter")
-
-        case Some(Left(message)) => throw new BadRequestException(message)
-      }
+      processUpdatedOn(
+        optOffset,
+        optLimit,
+        localDateBinder.bind("updated-on", request.queryString)
+      )
     }
 
-  private def nextPageURL(updatedOn: PastLocalDate, limit: Limit, count: Int, offset: Int): Option[String] = {
-    if (count > offset + limit.value)
-      Some(routes.UpdatedPrintSuppressionsController.list(
-        offset = Some(offset + limit.value),
-        limit = Some(limit)
-      ).url + s"&${localDateBinder.unbind("updated-on", updatedOn)}")
-    else None
-  }
-}
-
-object UpdatedPrintSuppressionsController extends UpdatedPrintSuppressionsController {
-  val localDateBinder = new PastLocalDateBindable{}
 }

@@ -19,49 +19,68 @@ package uk.gov.hmrc.ups.repository
 import org.joda.time.LocalDate
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.ScalaFutures
+import org.scalatestplus.play.PlaySpec
+import org.scalatestplus.play.guice.GuiceOneAppPerSuite
+import play.api.Application
+import play.api.inject.guice.GuiceApplicationBuilder
+import play.api.test.Helpers._
+import play.modules.reactivemongo.ReactiveMongoComponent
 import reactivemongo.bson.BSONDocument
-import uk.gov.hmrc.mongo.MongoSpecSupport
-import uk.gov.hmrc.play.test.UnitSpec
+import uk.gov.hmrc.ups.controllers.MongoSupport
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-class UpdatedPrintSuppressionsDatabaseSpec extends UnitSpec with MongoSpecSupport with ScalaFutures with BeforeAndAfterAll {
+class UpdatedPrintSuppressionsDatabaseSpec extends PlaySpec with MongoSupport with ScalaFutures with BeforeAndAfterAll with GuiceOneAppPerSuite {
 
-  override def beforeAll() = {
-    super.beforeAll()
-    await(mongo().drop())
+  override def fakeApplication(): Application = new GuiceApplicationBuilder().configure(
+    s"mongodb.uri" -> s"mongodb://localhost:27017/$databaseName",
+    "play.http.router" -> "testOnlyDoNotUseInAppConf.Routes",
+    "metrics.jvm" -> false)
+    .overrides(play.api.inject.bind[ReactiveMongoComponent].to(testMongoComponent)).build()
+
+  private val updatedPrintSuppressionsDatabase = app.injector.instanceOf[UpdatedPrintSuppressionsDatabase]
+  private val today = LocalDate.now()
+  private val upsCollectionName1 = UpdatedPrintSuppressions.repoNameTemplate(today)
+  private val upsCollectionName2 = UpdatedPrintSuppressions.repoNameTemplate(today.minusDays(1))
+  private val counters = "counters"
+
+  override def beforeAll(): Unit = {
+    super.afterAll()
+    dropTestCollection(upsCollectionName1)
+    dropTestCollection(upsCollectionName2)
+    dropTestCollection(counters)
   }
 
   "collections list repo" should {
     "return a list of UPS collections" in {
-      val today = LocalDate.now()
-
-      val upsCollectionName1 = UpdatedPrintSuppressions.repoNameTemplate(today)
-      val upsCollectionName2 = UpdatedPrintSuppressions.repoNameTemplate(today.minusDays(1))
-      val counters = "counters"
-
       val document = BSONDocument("test" -> "1")
       await(
         Future.sequence(
           List(
-            bsonCollection(upsCollectionName1)().insert(document),
-            bsonCollection(upsCollectionName2)().insert(document),
-            bsonCollection(counters)().insert(document)
+            bsonCollection(upsCollectionName1)().insert(false).one(document),
+            bsonCollection(upsCollectionName2)().insert(false).one(document),
+            bsonCollection(counters)().insert(false).one(document)
           )
         )
       )
-
-      new UpdatedPrintSuppressionsDatabase().upsCollectionNames.futureValue should contain only(upsCollectionName1, upsCollectionName2)
+      updatedPrintSuppressionsDatabase.upsCollectionNames.futureValue must contain only(upsCollectionName1, upsCollectionName2)
     }
   }
 
   "drop collection and return true if successful" in {
     val document = BSONDocument("test" -> "1")
-    await(bsonCollection("db-1")().insert(document))
-    await(new UpdatedPrintSuppressionsDatabase().dropCollection("db-1"))
+    await(bsonCollection("db-1")().insert(false).one(document))
+    await(updatedPrintSuppressionsDatabase.dropCollection("db-1"))
 
-    mongo().collectionNames.futureValue should not contain ("db-1")
-
+    mongo().collectionNames.futureValue must not contain "db-1"
   }
+
+  override def afterAll(): Unit = {
+    super.afterAll()
+    dropTestCollection(upsCollectionName1)
+    dropTestCollection(upsCollectionName2)
+    dropTestCollection(counters)
+  }
+
 }

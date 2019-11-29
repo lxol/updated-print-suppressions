@@ -31,7 +31,7 @@ trait LimitBinder extends QueryStringBindable[Limit] {
         case limit => Right(Limit(limit))
       }
     } recover {
-      case e: Exception => Left("Cannot parse parameter limit as Int")
+      case _: Exception => Left("Cannot parse parameter limit as Int")
     } get
     }
   }

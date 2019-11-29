@@ -16,24 +16,22 @@
 
 package uk.gov.hmrc.ups.repository
 
-import play.modules.reactivemongo.MongoDbConnection
-import reactivemongo.api.DefaultDB
+import javax.inject.{Inject, Singleton}
+import play.modules.reactivemongo.ReactiveMongoComponent
 import reactivemongo.api.collections.bson.BSONCollection
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class UpdatedPrintSuppressionsDatabase(implicit db: () => DefaultDB) {
+@Singleton
+class UpdatedPrintSuppressionsDatabase @Inject()(mongoComponent: ReactiveMongoComponent) {
 
   def dropCollection(collectionName: String)(implicit ec: ExecutionContext): Future[Unit] =
-    db().collection[BSONCollection](collectionName).drop()
+     mongoComponent.mongoConnector.db().collection[BSONCollection](collectionName).drop
 
   private def listCollectionNames(predicate: String => Boolean)(implicit ec: ExecutionContext): Future[List[String]] =
-    db().collectionNames.map(_.filter(predicate))
+    mongoComponent.mongoConnector.db().collectionNames.map(_.filter(predicate))
 
   def upsCollectionNames(implicit ec: ExecutionContext): Future[List[String]] =
     listCollectionNames(_.startsWith("updated"))
 
-}
-object UpdatedPrintSuppressionsDatabase extends MongoDbConnection  {
-  def apply(): UpdatedPrintSuppressionsDatabase = new UpdatedPrintSuppressionsDatabase
 }

@@ -18,24 +18,32 @@ package uk.gov.hmrc.ups.repository
 
 import org.joda.time.LocalDate
 import org.scalatest.DoNotDiscover
+import org.scalatestplus.play.PlaySpec
+import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import reactivemongo.bson.BSONObjectID
 import uk.gov.hmrc.mongo.MongoSpecSupport
-import uk.gov.hmrc.play.test.UnitSpec
 import uk.gov.hmrc.time.DateTimeUtils
 import uk.gov.hmrc.ups.model.PrintPreference
+import play.api.test.Helpers._
+import play.modules.reactivemongo.ReactiveMongoComponent
+
+import scala.concurrent.ExecutionContextExecutor
 
 @DoNotDiscover
-class RandomDataGenerator extends UnitSpec {
+class RandomDataGenerator extends PlaySpec with GuiceOneAppPerSuite with MongoSpecSupport {
 
-  implicit val ec = scala.concurrent.ExecutionContext.Implicits.global
+  val mongoCounterRepository = app.injector.instanceOf[MongoCounterRepository]
+  val mongoComponent = app.injector.instanceOf[ReactiveMongoComponent]
+
+  implicit val ec: ExecutionContextExecutor = scala.concurrent.ExecutionContext.Implicits.global
 
   val BATCH_SIZE: Int = 100000
 
   "RandomDataGenerator" should {
 
     "create 3M random records in one day" in new TestSetup {
-
-      val repository: UpdatedPrintSuppressionsRepository = new UpdatedPrintSuppressionsRepository(new LocalDate().minusDays(1), MongoCounterRepository())
+      val repository: UpdatedPrintSuppressionsRepository = new UpdatedPrintSuppressionsRepository(
+        mongoComponent, new LocalDate().minusDays(1), mongoCounterRepository)
       await(repository.removeAll())
       0 to 29 foreach {
         i => {

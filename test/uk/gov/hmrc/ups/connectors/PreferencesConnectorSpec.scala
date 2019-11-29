@@ -16,50 +16,64 @@
 
 package uk.gov.hmrc.ups.connectors
 
-import org.joda.time.Duration
 import org.mockito.Matchers._
 import org.mockito.Mockito._
+import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.mock.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
+import org.scalatestplus.play.PlaySpec
+import org.scalatestplus.play.guice.GuiceOneAppPerSuite
+import play.api.Application
 import play.api.http.Status
-import play.api.libs.json.{JsValue, Json}
-import uk.gov.hmrc.http.{HeaderCarrier, HttpPost, HttpResponse}
-import uk.gov.hmrc.play.test.UnitSpec
+import play.api.inject.bind
+import play.api.inject.guice.GuiceApplicationBuilder
+import play.api.libs.json.JsValue
+import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.mongo.MongoSpecSupport
+import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import uk.gov.hmrc.time.DateTimeUtils
-import uk.gov.hmrc.ups.model.PulledItem
+import uk.gov.hmrc.ups.model.{EntityId, PulledItem, WorkItemRequest}
 import uk.gov.hmrc.ups.utils.Generate
 import uk.gov.hmrc.workitem.Succeeded
 
+import scala.concurrent.{ExecutionContext, Future}
 
-class PreferencesConnectorSpec extends UnitSpec with ScalaFutures with MockitoSugar {
+class PreferencesConnectorSpec extends PlaySpec with ScalaFutures with MockitoSugar with GuiceOneAppPerSuite with MongoSpecSupport with BeforeAndAfterEach {
 
-  implicit val hc = HeaderCarrier()
+  val mockHttpClient: HttpClient = mock[HttpClient]
+
+  override def fakeApplication(): Application = new GuiceApplicationBuilder()
+    .overrides(bind[HttpClient].to(mockHttpClient)).build()
+
+  override def beforeEach(): Unit = {
+    reset(mockHttpClient)
+  }
 
   "pull next work item from preferences" should {
     "return the next work item that was at todo status" in new TestCase {
-      val pulledItem = PulledItem(randomEntityId, true, DateTimeUtils.now, "someUrl")
-      when(connector.httpWrapper.postF[PulledItem](any())).thenReturn(HttpResponse(Status.OK, Some(Json.toJson(pulledItem))))
+      val pulledItem = PulledItem(randomEntityId, paperless = true, DateTimeUtils.now, "someUrl")
+      when(mockHttpClient.POST[WorkItemRequest, Option[PulledItem]](any(),any(),any())(any(),any(),any(),any())).thenReturn(Future.successful(Some(pulledItem)))
 
-      connector.pullWorkItem.futureValue should be(Some(pulledItem))
+      connector.pullWorkItem.futureValue must be(Some(pulledItem))
 
-      verify(connector.httpWrapper).postF[PulledItem](any())
+      verify(mockHttpClient).POST[WorkItemRequest, Option[PulledItem]](any(),any(),any())(any(),any(),any(),any())
     }
 
     "return None if there no work item" in new TestCase {
-      when(connector.httpWrapper.postF[PulledItem](any())).thenReturn(HttpResponse(Status.NO_CONTENT, None))
+      when(mockHttpClient.POST[WorkItemRequest,Option[PulledItem]](any(),any(),any())(any(),any(),any(),any())).thenReturn(Future.successful(None))
 
-      connector.pullWorkItem.futureValue should be(None)
+      connector.pullWorkItem.futureValue must be(None)
 
-      verify(connector.httpWrapper).postF[PulledItem](any())
+      verify(mockHttpClient).POST[WorkItemRequest, Option[PulledItem]](any(),any(),any())(any(),any(),any(),any())
     }
 
     "return none on an unexpected response from preferences" in new TestCase {
       val expectedStatus: Int = Status.NOT_FOUND
-      when(connector.httpWrapper.postF[PulledItem](any())).thenReturn(HttpResponse(expectedStatus, None))
+      when(mockHttpClient.POST[WorkItemRequest,Option[PulledItem]](any(),any(),any())(any(),any(),any(),any())).thenReturn(Future.successful(None))
 
-      connector.pullWorkItem.futureValue shouldBe None
+      connector.pullWorkItem.futureValue mustBe None
 
-      verify(connector.httpWrapper).postF[PulledItem](any())
+      verify(mockHttpClient).POST[WorkItemRequest, Option[PulledItem]](any(),any(),any())(any(),any(),any(),any())
     }
   }
 
@@ -67,24 +81,19 @@ class PreferencesConnectorSpec extends UnitSpec with ScalaFutures with MockitoSu
     "return OK if the succeeded status is updated successfully" in new TestCase {
       val callbackUrl = "serviceUrl/updated-print-suppression/entityId/status"
 
-      when(connector.httpWrapper.postF[JsValue](any())).thenReturn(HttpResponse(Status.OK, None))
+      when(mockHttpClient.POST[JsValue,Int](any(),any(),any())(any(),any(),any(),any())).thenReturn(Future.successful(Status.OK))
 
-      connector.changeStatus(callbackUrl, Succeeded).futureValue should be(Status.OK)
+      connector.changeStatus(callbackUrl, Succeeded).futureValue must be(Status.OK)
 
-      verify(connector.httpWrapper).postF[JsValue](any())
+      //verify(mockHttpClient).POST(any(),any(),any())
     }
   }
 
   trait TestCase {
-    val httpMock = mock[HttpPost]
-    val connector = new HttpPreferencesConnector
-    val randomEntityId = Generate.entityId
+    implicit val mockEc: ExecutionContext = mock[ExecutionContext]
+    implicit val hc: HeaderCarrier = HeaderCarrier()
+    val connector: PreferencesConnector = app.injector.instanceOf[PreferencesConnector]
+    val randomEntityId: EntityId = Generate.entityId
   }
-}
 
-class HttpPreferencesConnector extends PreferencesConnector with MockHttpPost {
-
-  override def serviceUrl: String = "preferences-url"
-
-  def retryFailedUpdatesAfter: Duration = new Duration(1000)
 }

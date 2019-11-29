@@ -16,24 +16,33 @@
 
 package uk.gov.hmrc.ups.connectors
 
-import org.joda.time.{DateTime, Duration}
-import play.api.Mode.Mode
+import javax.inject.{Inject, Singleton}
+import org.joda.time.DateTime
 import play.api.http.Status._
-import play.api.libs.json.{JsValue, Json}
-import play.api.{Configuration, Logger, Play}
-import uk.gov.hmrc.play.config.ServicesConfig
+import play.api.libs.json.JodaWrites.{JodaDateTimeWrites => _}
+import play.api.libs.json.{Format, JodaReads, JodaWrites, JsResult, JsValue, Json}
+import play.api.{Configuration, Logger}
+import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse}
+import uk.gov.hmrc.play.bootstrap.config.{RunMode, ServicesConfig}
+import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import uk.gov.hmrc.time.DateTimeUtils
-import uk.gov.hmrc.ups.config.WSHttp
 import uk.gov.hmrc.ups.model.{Filters, PulledItem, WorkItemRequest}
 import uk.gov.hmrc.workitem.ProcessingStatus
-import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
 
-import scala.concurrent.Future
-import uk.gov.hmrc.http.{HeaderCarrier, HttpPost, HttpReads, HttpResponse}
+import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 
-trait PreferencesConnector {
-  implicit val optionalPullItemReads = new HttpReads[Option[PulledItem]] {
-    override def read(method: String, url: String, response: HttpResponse) =
+@Singleton
+class PreferencesConnector @Inject()(httpClient: HttpClient, runMode: RunMode, configuration: Configuration, servicesConfig: ServicesConfig)
+                                    (implicit ec: ExecutionContext) {
+
+  implicit val dateFormatDefault: Format[DateTime] = new Format[DateTime] {
+    override def reads(json: JsValue): JsResult[DateTime] = JodaReads.DefaultJodaDateTimeReads.reads(json)
+    override def writes(o: DateTime): JsValue = JodaWrites.JodaDateTimeNumberWrites.writes(o)
+  }
+
+  implicit val optionalPullItemReads: HttpReads[Option[PulledItem]] = new HttpReads[Option[PulledItem]] {
+    override def read(method: String, url: String, response: HttpResponse): Option[PulledItem] =
       response.status match {
         case NO_CONTENT => None
         case OK => Some(response.json.as[PulledItem])
@@ -43,48 +52,33 @@ trait PreferencesConnector {
       }
   }
 
-  implicit val statusReads = new HttpReads[Int] {
+  implicit val statusReads: HttpReads[Int] = new HttpReads[Int] {
     def read(method: String, url: String, response: HttpResponse): Int = response.status
   }
 
-  def pullWorkItem(implicit hc: HeaderCarrier): Future[Option[PulledItem]] =
-    http.POST[WorkItemRequest, Option[PulledItem]](
+  def pullWorkItem(implicit hc: HeaderCarrier): Future[Option[PulledItem]] = {
+    httpClient.POST[WorkItemRequest, Option[PulledItem]](
       s"$serviceUrl/preferences/updated-print-suppression/pull-work-item",
       workItemRequest
     ).recover { case ex =>
       Logger.error(s"Call to $serviceUrl/preferences/updated-print-suppression/pull-work-item failed unexpectedly", ex)
       None
     }
+  }
 
-  def changeStatus(callbackUrl: String, status: ProcessingStatus)(implicit hc: HeaderCarrier) =
-    http.POST[JsValue, Int](s"$serviceUrl$callbackUrl", Json.obj("status" -> status.name))
+  def changeStatus(callbackUrl: String, status: ProcessingStatus)(implicit hc: HeaderCarrier): Future[Int] =
+    httpClient.POST[JsValue, Int](s"$serviceUrl$callbackUrl", Json.obj("status" -> status.name))
 
-  def retryFailedUpdatesAfter: Duration
-
-  def dateTimeFor(duration: Duration): DateTime = DateTimeUtils.now.minus(duration)
+  def dateTimeFor(duration: Duration): DateTime = DateTimeUtils.now.minus(duration.toMillis)
 
   def workItemRequest: WorkItemRequest =
     WorkItemRequest(Filters(dateTimeFor(retryFailedUpdatesAfter), DateTimeUtils.now))
 
-  def http: HttpPost
+  lazy val retryFailedUpdatesAfter: Duration = {
+    configuration.getOptional[Duration](s"${runMode.env}.updatedPrintSuppressions.retryFailedUpdatesAfter").
+      getOrElse(throw new IllegalStateException(s"${runMode.env}.updatedPrintSuppressions.retryFailedUpdatesAfter config value not set"))
+  }
 
-  def serviceUrl: String
+  lazy val serviceUrl: String = servicesConfig.baseUrl("preferences")
 
-}
-object PreferencesConnector extends PreferencesConnector with ServicesConfig {
-
-  lazy val retryFailedUpdatesAfter: Duration =
-    Duration.millis(
-      Play.current.configuration.
-        getMilliseconds(s"$env.updatedPrintSuppressions.retryFailedUpdatesAfter").
-        getOrElse(throw new IllegalStateException(s"$env.updatedPrintSuppressions.retryFailedUpdatesAfter config value not set"))
-    )
-
-  lazy val serviceUrl: String = baseUrl("preferences")
-
-  lazy val http = WSHttp
-
-  override protected def mode: Mode = Play.current.mode
-
-  override protected def runModeConfiguration: Configuration = Play.current.configuration
 }

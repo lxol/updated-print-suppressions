@@ -17,15 +17,14 @@
 package uk.gov.hmrc.ups.controllers.bind
 
 import org.joda.time.LocalDate
+import play.api.Logger
 import play.api.mvc.QueryStringBindable
 import uk.gov.hmrc.time.DateConverter
 import uk.gov.hmrc.ups.model.PastLocalDate
 
 import scala.util.Try
 
-trait PastLocalDateBindable extends QueryStringBindable[PastLocalDate] {
-
-  def shouldValidatePastDate : Boolean = true
+case class PastLocalDateBindable(shouldValidatePastDate: Boolean) extends QueryStringBindable[PastLocalDate] {
 
   def bind(key: String, params: Map[String, Seq[String]]): Option[Either[String, PastLocalDate]] = {
     params.get(key).flatMap(_.headOption).map {
