@@ -27,6 +27,7 @@ object AppDependencies {
     "uk.gov.hmrc"             %% "play-scheduling"        % "7.1.0-play-26",
     "uk.gov.hmrc"             %% "domain"                 % "5.6.0-play-26",
     "uk.gov.hmrc"             %% "work-item-repo"         % "6.8.0-play-26",
+    "net.codingwell"         %% "scala-guice"              % "4.2.6",
     "com.typesafe.play"       %% "play-json-joda"         % "2.6.14"
   )
 

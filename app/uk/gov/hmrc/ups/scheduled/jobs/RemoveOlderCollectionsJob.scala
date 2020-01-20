@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 HM Revenue & Customs
+ * Copyright 2020 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -60,8 +60,7 @@ class RemoveOlderCollectionsJob @Inject()(runMode: RunMode, configuration: Confi
   override def name: String = "removeOlderCollections"
 
   private def durationFromConfig(propertyKey: String): FiniteDuration = {
-    val millis = configuration.getOptional[Long](s"${runMode.env}.scheduling.$name.$propertyKey")
-      .getOrElse(throw new IllegalStateException(s"Config key ${runMode.env}.scheduling.$name.$propertyKey missing"))
+    val millis = configuration.getMillis(s"${runMode.env}.scheduling.$name.$propertyKey")
     FiniteDuration(millis, TimeUnit.MILLISECONDS)
   }
 
