@@ -36,8 +36,7 @@ class UpdatedPrintSuppressionJob @Inject()(runMode: RunMode, configuration: Conf
                                            preferencesProcessor: PreferencesProcessor) extends LockedScheduledJob {
 
   override lazy val releaseLockAfter: Duration = Duration.millis(
-    configuration.getOptional[Long](s"${runMode.env}.updatedPrintSuppressions.releaseLockAfter").
-      getOrElse(throw new IllegalStateException(s"${runMode.env}.updatedPrintSuppressions.releaseLockAfter config value not set"))
+       configuration.getMillis(s"${runMode.env}.updatedPrintSuppressions.releaseLockAfter")
   )
 
   def executeInLock(implicit ec: ExecutionContext): Future[Result] = {

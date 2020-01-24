@@ -47,6 +47,6 @@ class UpsMain @Inject()(
   def scheduleJob(job: ScheduledJob)(implicit ec: ExecutionContext): Unit =
     actorSystem.scheduler.schedule(job.initialDelay, job.interval)(job.execute.map {
       result =>
-      Logger.debug(s"Job ${job.name} result: ${result.message}")equals()
+      Logger.debug(s"Job ${job.name} result: ${result.message}")
     })
 }
