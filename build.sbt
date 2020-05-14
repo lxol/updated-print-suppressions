@@ -1,3 +1,4 @@
+import com.lucidchart.sbt.scalafmt.ScalafmtCorePlugin.autoImport._
 import play.sbt.routes.RoutesKeys
 import uk.gov.hmrc.DefaultBuildSettings._
 import uk.gov.hmrc.ServiceManagerPlugin.Keys.itDependenciesList
@@ -49,6 +50,16 @@ lazy val microservice = Project(appName, file("."))
     unmanagedSourceDirectories in IntegrationTest := (baseDirectory in IntegrationTest) (base => Seq(base / "it")).value,
     addTestReportOption(IntegrationTest, "int-test-reports"),
     parallelExecution in IntegrationTest := false,
-    routesGenerator := InjectedRoutesGenerator
+    routesGenerator := InjectedRoutesGenerator,
+    inConfig(IntegrationTest)(
+      scalafmtCoreSettings ++
+        Seq(
+          compileInputs in compile := Def.taskDyn {
+            val task = test in (resolvedScoped.value.scope in scalafmt.key)
+            val previousInputs = (compileInputs in compile).value
+            task.map(_ => previousInputs)
+          }.value
+        )
+    )
   )
 

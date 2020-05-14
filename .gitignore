@@ -16,6 +16,8 @@ dist
 /.project
 /RUNNING_PID
 /.settings
+!.scalafmt.conf
+!.sbtrc
 *.iws
 
     
