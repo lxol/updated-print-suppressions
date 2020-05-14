@@ -18,7 +18,7 @@ package uk.gov.hmrc.ups.scheduler
 
 import org.joda.time.LocalDate
 import org.scalatest.BeforeAndAfterEach
-import org.scalatest.concurrent.{Eventually, IntegrationPatience, ScalaFutures}
+import org.scalatest.concurrent.{ Eventually, IntegrationPatience, ScalaFutures }
 import org.scalatestplus.play.PlaySpec
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
@@ -34,21 +34,20 @@ import uk.gov.hmrc.ups.repository.UpdatedPrintSuppressions
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-class CollectionRemovalISpec extends PlaySpec
-    with ServiceSpec
-    with ScalaFutures
-    with MongoSpecSupport
-    with IntegrationPatience
-    with Eventually
-    with BeforeAndAfterEach {
+class CollectionRemovalISpec
+    extends PlaySpec with ServiceSpec with ScalaFutures with MongoSpecSupport with IntegrationPatience with Eventually with BeforeAndAfterEach {
 
   private val expirationPeriod = 3
 
-  override def fakeApplication(): Application = new GuiceApplicationBuilder().configure(
-    s"mongodb.uri" -> s"mongodb://localhost:27017/$databaseName",
-    s"Test.removeOlderCollections.durationInDays" -> expirationPeriod,
-    s"Test.scheduling.removeOlderCollections.initialDelay" -> "10 days",
-    s"Test.scheduling.removeOlderCollections.interval" -> "24 hours").build()
+  override def fakeApplication(): Application =
+    new GuiceApplicationBuilder()
+      .configure(
+        s"mongodb.uri"                                         -> s"mongodb://localhost:27017/$databaseName",
+        s"Test.removeOlderCollections.durationInDays"          -> expirationPeriod,
+        s"Test.scheduling.removeOlderCollections.initialDelay" -> "10 days",
+        s"Test.scheduling.removeOlderCollections.interval"     -> "24 hours"
+      )
+      .build()
 
   private val removeOlderCollectionsJob = app.injector.instanceOf[RemoveOlderCollectionsJob]
 
@@ -61,14 +60,20 @@ class CollectionRemovalISpec extends PlaySpec
     "delete only those collections in the database that are older than the provided duration" in new SetUp {
       await {
         Future.sequence(
-          (0 to 4).toList.map { days => bsonCollection(repoName(days))().insert(false).one(PrintPreference.formats.writes(pref)) }
+          (0 to 4).toList.map { days =>
+            bsonCollection(repoName(days))().insert(false).one(PrintPreference.formats.writes(pref))
+          }
         )
       }
 
       eventually {
         val msg = removeOlderCollectionsJob.executeInMutex.futureValue.message
         (3 to 4).map { repoName } forall { msg.contains(_) } mustBe true
-        (0 to 2).map { x => msg.contains(repoName(x)) }.fold(false)( _ || _) mustBe false
+        (0 to 2)
+          .map { x =>
+            msg.contains(repoName(x))
+          }
+          .fold(false)(_ || _) mustBe false
       }
 
       eventually {
@@ -82,7 +87,7 @@ class CollectionRemovalISpec extends PlaySpec
 
     def daysFromToday(count: Int): LocalDate = LocalDate.now().minusDays(count)
 
-    def repoName(daysToDecrement : Int): String =
+    def repoName(daysToDecrement: Int): String =
       UpdatedPrintSuppressions.repoNameTemplate(daysFromToday(daysToDecrement))
   }
 

@@ -17,25 +17,25 @@
 package uk.gov.hmrc.ups
 
 import akka.actor.ActorSystem
-import javax.inject.{Inject, Singleton}
+import javax.inject.{ Inject, Singleton }
 import play.api.Logger
 import play.api.inject.ApplicationLifecycle
-import play.api.{Configuration, Environment}
+import play.api.{ Configuration, Environment }
 import uk.gov.hmrc.play.scheduling.ScheduledJob
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ ExecutionContext, Future }
 
 @Singleton
 class UpsMain @Inject()(
-                        env: Environment,
-                        scheduledJobs: Seq[ScheduledJob],
-                        actorSystem: ActorSystem,
-                        configuration: Configuration,
-                        lifecycle: ApplicationLifecycle)
-                        (implicit val ec: ExecutionContext) {
+  env: Environment,
+  scheduledJobs: Seq[ScheduledJob],
+  actorSystem: ActorSystem,
+  configuration: Configuration,
+  lifecycle: ApplicationLifecycle)(implicit val ec: ExecutionContext) {
 
-  lifecycle.addStopHook(() => Future{
-    actorSystem.terminate()
+  lifecycle.addStopHook(() =>
+    Future {
+      actorSystem.terminate()
   })
 
   scheduledJobs.foreach(scheduleJob)
@@ -45,8 +45,7 @@ class UpsMain @Inject()(
     .toInt
 
   def scheduleJob(job: ScheduledJob)(implicit ec: ExecutionContext): Unit =
-    actorSystem.scheduler.schedule(job.initialDelay, job.interval)(job.execute.map {
-      result =>
+    actorSystem.scheduler.schedule(job.initialDelay, job.interval)(job.execute.map { result =>
       Logger.debug(s"Job ${job.name} result: ${result.message}")
     })
 }

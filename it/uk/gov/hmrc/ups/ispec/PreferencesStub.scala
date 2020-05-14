@@ -17,7 +17,7 @@
 package uk.gov.hmrc.ups.ispec
 
 import com.github.tomakehurst.wiremock.client.WireMock._
-import com.github.tomakehurst.wiremock.stubbing.{Scenario, StubMapping}
+import com.github.tomakehurst.wiremock.stubbing.{ Scenario, StubMapping }
 import org.joda.time.DateTime
 import org.skyscreamer.jsonassert.JSONCompareMode
 import play.api.http.Status
@@ -28,7 +28,7 @@ import uk.gov.hmrc.workitem.ProcessingStatus
 
 trait PreferencesStub {
 
-  def stubFirstPullUpdatedPrintSuppression(entityId: EntityId, updatedAt: DateTime): StubMapping = {
+  def stubFirstPullUpdatedPrintSuppression(entityId: EntityId, updatedAt: DateTime): StubMapping =
     stubFor(
       post(urlMatching("/preferences/updated-print-suppression/pull-work-item"))
         .inScenario("ALL")
@@ -36,19 +36,16 @@ trait PreferencesStub {
         .willReturn(
           aResponse()
             .withStatus(200)
-            .withBody(
-              s"""
-                 |{
-                 |  "entityId" : "${entityId.value}",
-                 |  "paperless" : true,
-                 |  "updatedAt" : "${RestFormats.dateTimeWrite.writes(updatedAt).as[String]}",
-                 |  "callbackUrl" : "/preferences/updated-print-suppression/${entityId.value}/status"
-                 |}
-                 | """.
-                stripMargin)
+            .withBody(s"""
+                         |{
+                         |  "entityId" : "${entityId.value}",
+                         |  "paperless" : true,
+                         |  "updatedAt" : "${RestFormats.dateTimeWrite.writes(updatedAt).as[String]}",
+                         |  "callbackUrl" : "/preferences/updated-print-suppression/${entityId.value}/status"
+                         |}
+                         | """.stripMargin)
         )
     )
-  }
 
   def stubSetStatus(entityId: EntityId, expectedStatus: ProcessingStatus, httpStatusCode: Int): StubMapping =
     stubFor(
@@ -71,6 +68,5 @@ trait PreferencesStub {
         .whenScenarioStateIs(expectedStatus.name)
         .willReturn(aResponse().withStatus(expectedHttpStatus))
     )
-
 
 }

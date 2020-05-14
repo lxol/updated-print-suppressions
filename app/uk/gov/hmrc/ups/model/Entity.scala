@@ -18,7 +18,7 @@ package uk.gov.hmrc.ups.model
 
 import play.api.libs.json.Json.JsValueWrapper
 import play.api.libs.json._
-import uk.gov.hmrc.domain.{SerialisableTaxId, TaxIds}
+import uk.gov.hmrc.domain.{ SerialisableTaxId, TaxIds }
 import uk.gov.hmrc.domain.TaxIds.TaxIdWithName
 import play.api.libs.functional.syntax._
 
@@ -34,7 +34,7 @@ object Entity {
   val reads = (
     (__ \ "_id").read[EntityId] and
       TaxIds.reads(TaxIds.defaultSerialisableIds.toSet[SerialisableTaxId])
-    ) ((entityId, taxIds) => Entity.apply(entityId, taxIds.values))
+  )((entityId, taxIds) => Entity.apply(entityId, taxIds.values))
 
   val writes = new Writes[Entity] {
     override def writes(entity: Entity): JsValue = {

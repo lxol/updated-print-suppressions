@@ -16,17 +16,17 @@
 
 package uk.gov.hmrc.ups.repository
 
-import javax.inject.{Inject, Singleton}
+import javax.inject.{ Inject, Singleton }
 import play.modules.reactivemongo.ReactiveMongoComponent
 import reactivemongo.api.collections.bson.BSONCollection
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ ExecutionContext, Future }
 
 @Singleton
 class UpdatedPrintSuppressionsDatabase @Inject()(mongoComponent: ReactiveMongoComponent) {
 
   def dropCollection(collectionName: String)(implicit ec: ExecutionContext): Future[Unit] =
-     mongoComponent.mongoConnector.db().collection[BSONCollection](collectionName).drop
+    mongoComponent.mongoConnector.db().collection[BSONCollection](collectionName).drop
 
   private def listCollectionNames(predicate: String => Boolean)(implicit ec: ExecutionContext): Future[List[String]] =
     mongoComponent.mongoConnector.db().collectionNames.map(_.filter(predicate))

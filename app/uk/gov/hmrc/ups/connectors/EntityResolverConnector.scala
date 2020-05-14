@@ -16,27 +16,26 @@
 
 package uk.gov.hmrc.ups.connectors
 
-import javax.inject.{Inject, Singleton}
+import javax.inject.{ Inject, Singleton }
 import play.api.http.Status._
-import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
+import uk.gov.hmrc.http.{ HeaderCarrier, HttpResponse }
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
-import uk.gov.hmrc.ups.model.{Entity, EntityId}
+import uk.gov.hmrc.ups.model.{ Entity, EntityId }
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ ExecutionContext, Future }
 
 @Singleton
 class EntityResolverConnector @Inject()(httpClient: HttpClient, servicesConfig: ServicesConfig)(implicit ec: ExecutionContext) {
 
-  def getTaxIdentifiers(entityId: EntityId)(implicit hc: HeaderCarrier): Future[Either[Int,Option[Entity]]] = {
+  def getTaxIdentifiers(entityId: EntityId)(implicit hc: HeaderCarrier): Future[Either[Int, Option[Entity]]] =
     httpClient.GET[HttpResponse](s"$serviceUrl/entity-resolver/$entityId").map { response =>
       response.status match {
         case NOT_FOUND => Right(None)
-        case OK => Right(Some(response.json.as[Entity]))
-        case _ => Left(response.status)
+        case OK        => Right(Some(response.json.as[Entity]))
+        case _         => Left(response.status)
       }
     }
-  }
 
   def serviceUrl: String = servicesConfig.baseUrl("entity-resolver")
 

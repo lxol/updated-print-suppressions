@@ -17,12 +17,11 @@
 package uk.gov.hmrc.ups.scheduled
 
 import org.joda.time.format.DateTimeFormat
-import org.joda.time.{Duration => jDuration, _}
-import uk.gov.hmrc.ups.repository.{UpdatedPrintSuppressions, UpdatedPrintSuppressionsDatabase}
+import org.joda.time.{ Duration => jDuration, _ }
+import uk.gov.hmrc.ups.repository.{ UpdatedPrintSuppressions, UpdatedPrintSuppressionsDatabase }
 
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
-
+import scala.concurrent.{ ExecutionContext, Future }
 
 trait RemoveOlderCollections extends DeleteCollectionFilter with SelectAndRemove {
 
@@ -35,9 +34,8 @@ trait RemoveOlderCollections extends DeleteCollectionFilter with SelectAndRemove
 
 trait SelectAndRemove {
 
-  def compose(listCollections: () => Future[List[String]],
-              expireCollection: String => Future[Unit],
-              filter: String => Boolean)(implicit ec: ExecutionContext): Future[Totals] =
+  def compose(listCollections: () => Future[List[String]], expireCollection: String => Future[Unit], filter: String => Boolean)(
+    implicit ec: ExecutionContext): Future[Totals] =
     listCollections().flatMap { names =>
       Future.fold(
         names.filter(filter).map { name =>
@@ -48,7 +46,7 @@ trait SelectAndRemove {
 
   private def resultHandler(totals: Totals, result: ProcessingResult) = result match {
     case x: Succeeded => totals.copy(successes = x :: totals.successes)
-    case x: Failed => totals.copy(failures = x :: totals.failures)
+    case x: Failed    => totals.copy(failures = x :: totals.failures)
   }
 
 }

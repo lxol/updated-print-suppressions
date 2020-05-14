@@ -17,43 +17,42 @@
 package uk.gov.hmrc.ups.controllers
 
 import com.codahale.metrics.SharedMetricRegistries
-import org.scalatest.{BeforeAndAfterEach, WordSpec}
+import org.scalatest.{ BeforeAndAfterEach, WordSpec }
 import org.scalatestplus.play.WsScalaTestClient
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
-import play.api.libs.ws.{WSClient, WSRequest}
+import play.api.libs.ws.{ WSClient, WSRequest }
 import play.modules.reactivemongo.ReactiveMongoComponent
 import uk.gov.hmrc.integration.ServiceSpec
 import uk.gov.hmrc.ups.repository.MongoCounterRepository
 
 trait TestServer extends WordSpec with ServiceSpec with WsScalaTestClient with BeforeAndAfterEach with MongoSupport {
 
-  override def fakeApplication(): Application = new GuiceApplicationBuilder().configure(
-    s"mongodb.uri" -> s"mongodb://localhost:27017/$databaseName",
-    "play.http.router" -> "testOnlyDoNotUseInAppConf.Routes",
-    "metrics.jvm" -> false)
-    .overrides(play.api.inject.bind[ReactiveMongoComponent].to(testMongoComponent)).build()
+  override def fakeApplication(): Application =
+    new GuiceApplicationBuilder()
+      .configure(s"mongodb.uri" -> s"mongodb://localhost:27017/$databaseName", "play.http.router" -> "testOnlyDoNotUseInAppConf.Routes", "metrics.jvm" -> false)
+      .overrides(play.api.inject.bind[ReactiveMongoComponent].to(testMongoComponent))
+      .build()
 
   implicit val wsClient: WSClient = app.injector.instanceOf[WSClient]
 
   val testCounterRepository = app.injector.instanceOf[MongoCounterRepository]
 
-  override def beforeEach(): Unit = {
+  override def beforeEach(): Unit =
     SharedMetricRegistries.clear()
-  }
 
   def preferencesSaIndividualPrintSuppression(updatedOn: Option[String], offset: Option[String], limit: Option[String], isAdmin: Boolean = false) = {
 
     val queryString = Seq(
       updatedOn.map(value => "updated-on" -> value),
-      offset.map(value => "offset" -> value),
-      limit.map(value => "limit" -> value)
+      offset.map(value => "offset"        -> value),
+      limit.map(value => "limit"          -> value)
     ).flatten
 
     if (isAdmin) {
       wsUrl("/test-only/preferences/sa/individual/print-suppression").withQueryStringParameters(queryString: _*)
     } else {
-      wsUrl("/preferences/sa/individual/print-suppression").withQueryStringParameters(queryString:_*)
+      wsUrl("/preferences/sa/individual/print-suppression").withQueryStringParameters(queryString: _*)
     }
   }
 

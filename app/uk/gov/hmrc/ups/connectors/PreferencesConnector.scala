@@ -16,25 +16,25 @@
 
 package uk.gov.hmrc.ups.connectors
 
-import javax.inject.{Inject, Singleton}
+import javax.inject.{ Inject, Singleton }
 import org.joda.time.DateTime
 import play.api.http.Status._
-import play.api.libs.json.JodaWrites.{JodaDateTimeWrites => _}
-import play.api.libs.json.{Format, JodaReads, JodaWrites, JsResult, JsValue, Json}
-import play.api.{Configuration, Logger}
-import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse}
-import uk.gov.hmrc.play.bootstrap.config.{RunMode, ServicesConfig}
+import play.api.libs.json.JodaWrites.{ JodaDateTimeWrites => _ }
+import play.api.libs.json.{ Format, JodaReads, JodaWrites, JsResult, JsValue, Json }
+import play.api.{ Configuration, Logger }
+import uk.gov.hmrc.http.{ HeaderCarrier, HttpReads, HttpResponse }
+import uk.gov.hmrc.play.bootstrap.config.{ RunMode, ServicesConfig }
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import uk.gov.hmrc.time.DateTimeUtils
-import uk.gov.hmrc.ups.model.{Filters, PulledItem, WorkItemRequest}
+import uk.gov.hmrc.ups.model.{ Filters, PulledItem, WorkItemRequest }
 import uk.gov.hmrc.workitem.ProcessingStatus
 
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ ExecutionContext, Future }
 
 @Singleton
-class PreferencesConnector @Inject()(httpClient: HttpClient, runMode: RunMode, configuration: Configuration, servicesConfig: ServicesConfig)
-                                    (implicit ec: ExecutionContext) {
+class PreferencesConnector @Inject()(httpClient: HttpClient, runMode: RunMode, configuration: Configuration, servicesConfig: ServicesConfig)(
+  implicit ec: ExecutionContext) {
 
   implicit val dateFormatDefault: Format[DateTime] = new Format[DateTime] {
     override def reads(json: JsValue): JsResult[DateTime] = JodaReads.DefaultJodaDateTimeReads.reads(json)
@@ -45,7 +45,7 @@ class PreferencesConnector @Inject()(httpClient: HttpClient, runMode: RunMode, c
     override def read(method: String, url: String, response: HttpResponse): Option[PulledItem] =
       response.status match {
         case NO_CONTENT => None
-        case OK => Some(response.json.as[PulledItem])
+        case OK         => Some(response.json.as[PulledItem])
         case unexpectedStatus =>
           Logger.error(s"Call to $url failed with status $unexpectedStatus")
           None
@@ -56,15 +56,18 @@ class PreferencesConnector @Inject()(httpClient: HttpClient, runMode: RunMode, c
     def read(method: String, url: String, response: HttpResponse): Int = response.status
   }
 
-  def pullWorkItem(implicit hc: HeaderCarrier): Future[Option[PulledItem]] = {
-    httpClient.POST[WorkItemRequest, Option[PulledItem]](
-      s"$serviceUrl/preferences/updated-print-suppression/pull-work-item",
-      workItemRequest
-    ).recover { case ex =>
-      Logger.error(s"Call to $serviceUrl/preferences/updated-print-suppression/pull-work-item failed unexpectedly", ex)
-      None
-    }
-  }
+  def pullWorkItem(implicit hc: HeaderCarrier): Future[Option[PulledItem]] =
+    httpClient
+      .POST[WorkItemRequest, Option[PulledItem]](
+        s"$serviceUrl/preferences/updated-print-suppression/pull-work-item",
+        workItemRequest
+      )
+      .recover {
+        case ex =>
+          Logger
+            .error(s"Call to $serviceUrl/preferences/updated-print-suppression/pull-work-item failed unexpectedly", ex)
+          None
+      }
 
   def changeStatus(callbackUrl: String, status: ProcessingStatus)(implicit hc: HeaderCarrier): Future[Int] =
     httpClient.POST[JsValue, Int](s"$serviceUrl$callbackUrl", Json.obj("status" -> status.name))
@@ -75,8 +78,9 @@ class PreferencesConnector @Inject()(httpClient: HttpClient, runMode: RunMode, c
     WorkItemRequest(Filters(dateTimeFor(retryFailedUpdatesAfter), DateTimeUtils.now))
 
   lazy val retryFailedUpdatesAfter: Duration = {
-    configuration.getOptional[Duration](s"${runMode.env}.updatedPrintSuppressions.retryFailedUpdatesAfter").
-      getOrElse(throw new IllegalStateException(s"${runMode.env}.updatedPrintSuppressions.retryFailedUpdatesAfter config value not set"))
+    configuration
+      .getOptional[Duration](s"${runMode.env}.updatedPrintSuppressions.retryFailedUpdatesAfter")
+      .getOrElse(throw new IllegalStateException(s"${runMode.env}.updatedPrintSuppressions.retryFailedUpdatesAfter config value not set"))
   }
 
   lazy val serviceUrl: String = servicesConfig.baseUrl("preferences")

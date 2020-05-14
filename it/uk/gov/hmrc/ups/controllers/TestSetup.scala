@@ -24,10 +24,9 @@ import play.api.libs.json.OFormat
 import play.api.test.Helpers._
 import play.modules.reactivemongo.ReactiveMongoComponent
 import uk.gov.hmrc.ups.model.PrintPreference
-import uk.gov.hmrc.ups.repository.{MongoCounterRepository, UpdatedPrintSuppressionsRepository}
+import uk.gov.hmrc.ups.repository.{ MongoCounterRepository, UpdatedPrintSuppressionsRepository }
 
 import scala.concurrent.ExecutionContextExecutor
-
 
 trait TestSetup extends PlaySpec with ScalaFutures with BeforeAndAfterEach {
 

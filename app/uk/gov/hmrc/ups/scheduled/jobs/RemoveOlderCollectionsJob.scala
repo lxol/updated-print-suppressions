@@ -18,19 +18,19 @@ package uk.gov.hmrc.ups.scheduled.jobs
 
 import java.util.concurrent.TimeUnit
 
-import javax.inject.{Inject, Singleton}
-import play.api.{Configuration, Logger}
+import javax.inject.{ Inject, Singleton }
+import play.api.{ Configuration, Logger }
 import uk.gov.hmrc.play.bootstrap.config.RunMode
 import uk.gov.hmrc.play.scheduling.ExclusiveScheduledJob
 import uk.gov.hmrc.ups.repository.UpdatedPrintSuppressionsDatabase
-import uk.gov.hmrc.ups.scheduled.{Failed, RemoveOlderCollections, Succeeded}
+import uk.gov.hmrc.ups.scheduled.{ Failed, RemoveOlderCollections, Succeeded }
 
 import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ ExecutionContext, Future }
 
 @Singleton
 class RemoveOlderCollectionsJob @Inject()(runMode: RunMode, configuration: Configuration, updatedPrintSuppressionsDatabase: UpdatedPrintSuppressionsDatabase)
-  extends ExclusiveScheduledJob with RemoveOlderCollections {
+    extends ExclusiveScheduledJob with RemoveOlderCollections {
 
   override def executeInMutex(implicit ec: ExecutionContext): Future[Result] =
     removeOlderThan(durationInDays).map { totals =>
@@ -52,7 +52,8 @@ class RemoveOlderCollectionsJob @Inject()(runMode: RunMode, configuration: Confi
     }
 
   private lazy val durationInDays = {
-    val days = configuration.getOptional[Int](s"${runMode.env}.$name.durationInDays")
+    val days = configuration
+      .getOptional[Int](s"${runMode.env}.$name.durationInDays")
       .getOrElse(throw new IllegalStateException(s"Config key ${runMode.env}.$name.durationInDays missing"))
     FiniteDuration(days, TimeUnit.DAYS)
   }

@@ -19,7 +19,7 @@ package uk.gov.hmrc.ups.controllers
 import org.joda.time.LocalDate
 import org.scalatest.concurrent.IntegrationPatience
 import org.scalatestplus.play.PlaySpec
-import play.api.libs.json.{JsArray, JsValue, Json}
+import play.api.libs.json.{ JsArray, JsValue, Json }
 import play.api.test.Helpers._
 import play.modules.reactivemongo.ReactiveMongoComponent
 import uk.gov.hmrc.ups.model.PrintPreference
@@ -43,7 +43,6 @@ class UpdatedPrintSuppressionsControllerISpec extends PlaySpec with TestServer w
       lazy override val reactiveMongoComponent: ReactiveMongoComponent = testMongoComponent
       lazy override val mongoCounterRepository: MongoCounterRepository = testCounterRepository
 
-
       private val ppOne = PrintPreference("11111111", "someType", List.empty)
       private val ppTwo = PrintPreference("22222222", "someType", List("f1", "f2"))
 
@@ -59,8 +58,8 @@ class UpdatedPrintSuppressionsControllerISpec extends PlaySpec with TestServer w
       private val jsonBody = Json.parse(response.body)
       (jsonBody \ "pages").as[Int] mustBe 1
       (jsonBody \ "updates").as[JsArray].value.size mustBe 2
-      (jsonBody \ "updates") (0).as[PrintPreference] mustBe ppOne
-      (jsonBody \ "updates") (1).as[PrintPreference] mustBe ppTwo
+      (jsonBody \ "updates")(0).as[PrintPreference] mustBe ppOne
+      (jsonBody \ "updates")(1).as[PrintPreference] mustBe ppTwo
     }
 
     "return 'utr' instead of 'sautr' as idType for all available print suppression change events occurred that day" in new TestSetup {
@@ -85,15 +84,14 @@ class UpdatedPrintSuppressionsControllerISpec extends PlaySpec with TestServer w
       private val jsonBody = Json.parse(response.body)
       (jsonBody \ "pages").as[Int] mustBe 1
       (jsonBody \ "updates").as[JsArray].value.size mustBe 3
-      ((jsonBody \ "updates") (0) \ "idType").as[String] mustBe "utr"
-      ((jsonBody \ "updates") (1) \ "idType").as[String] mustBe "utr"
-      ((jsonBody \ "updates") (2) \ "idType").as[String] mustBe "someType"
+      ((jsonBody \ "updates")(0) \ "idType").as[String] mustBe "utr"
+      ((jsonBody \ "updates")(1) \ "idType").as[String] mustBe "utr"
+      ((jsonBody \ "updates")(2) \ "idType").as[String] mustBe "someType"
     }
 
     "not return print suppression change events occurred on another day" in new TestSetup {
       lazy override val reactiveMongoComponent: ReactiveMongoComponent = testMongoComponent
       lazy override val mongoCounterRepository: MongoCounterRepository = testCounterRepository
-
 
       private val ppOne = PrintPreference("11111111", "someType", List.empty)
       private val ppTwo = PrintPreference("22222222", "someType", List("f1", "f2"))
@@ -107,17 +105,16 @@ class UpdatedPrintSuppressionsControllerISpec extends PlaySpec with TestServer w
       private val jsonBody = Json.parse(response.body)
       (jsonBody \ "pages").as[Int] mustBe 1
       (jsonBody \ "updates").as[JsArray].value.size mustBe 1
-      (jsonBody \ "updates") (0).as[PrintPreference] mustBe ppTwo
-      ((jsonBody \ "updates") (0) \ "id").as[String] mustBe "22222222"
-      ((jsonBody \ "updates") (0) \ "idType").as[String] mustBe "someType"
-      ((jsonBody \ "updates") (0) \ "formIds") (0).as[String] mustBe "f1"
-      ((jsonBody \ "updates") (0) \ "formIds") (1).as[String] mustBe "f2"
+      (jsonBody \ "updates")(0).as[PrintPreference] mustBe ppTwo
+      ((jsonBody \ "updates")(0) \ "id").as[String] mustBe "22222222"
+      ((jsonBody \ "updates")(0) \ "idType").as[String] mustBe "someType"
+      ((jsonBody \ "updates")(0) \ "formIds")(0).as[String] mustBe "f1"
+      ((jsonBody \ "updates")(0) \ "formIds")(1).as[String] mustBe "f2"
     }
 
     "limit the number of events returned and a the path to next batch of events" in new TestSetup {
       lazy override val reactiveMongoComponent: ReactiveMongoComponent = testMongoComponent
       lazy override val mongoCounterRepository: MongoCounterRepository = testCounterRepository
-
 
       0 to 9 foreach { n =>
         await(repoYesterday.insert(PrintPreference(s"id_$n", "someType", List.empty), yesterday.toDateTimeAtStartOfDay))
@@ -127,7 +124,8 @@ class UpdatedPrintSuppressionsControllerISpec extends PlaySpec with TestServer w
 
       private val jsonBody: JsValue = Json.parse(response.body)
       (jsonBody \ "pages").as[Int] mustBe 2
-      (jsonBody \ "next").as[String] mustBe s"/preferences/sa/individual/print-suppression?offset=7&limit=6&updated-on=$yesterdayAsString"
+      (jsonBody \ "next")
+        .as[String] mustBe s"/preferences/sa/individual/print-suppression?offset=7&limit=6&updated-on=$yesterdayAsString"
       (jsonBody \ "updates").as[JsArray].value.size mustBe 6
     }
 
@@ -135,8 +133,7 @@ class UpdatedPrintSuppressionsControllerISpec extends PlaySpec with TestServer w
       lazy override val reactiveMongoComponent: ReactiveMongoComponent = testMongoComponent
       lazy override val mongoCounterRepository: MongoCounterRepository = testCounterRepository
 
-
-      0 to 9 foreach(n => await(repoYesterday.insert(PrintPreference(s"id_$n", "someType", List.empty), yesterday.toDateTimeAtStartOfDay)))
+      0 to 9 foreach (n => await(repoYesterday.insert(PrintPreference(s"id_$n", "someType", List.empty), yesterday.toDateTimeAtStartOfDay)))
       private val response = get(preferencesSaIndividualPrintSuppression(Some(yesterdayAsString), Some("7"), Some("6")))
 
       private val jsonBody = Json.parse(response.body)
@@ -148,7 +145,6 @@ class UpdatedPrintSuppressionsControllerISpec extends PlaySpec with TestServer w
     "allow a big number as an offset" in new TestSetup {
       lazy override val reactiveMongoComponent: ReactiveMongoComponent = testMongoComponent
       lazy override val mongoCounterRepository: MongoCounterRepository = testCounterRepository
-
 
       private val response = get(preferencesSaIndividualPrintSuppression(Some(yesterdayAsString), Some("50000"), None))
       response.status mustBe OK
@@ -192,7 +188,8 @@ class UpdatedPrintSuppressionsControllerISpec extends PlaySpec with TestServer w
 
       val jsonBody = Json.parse(response.body)
       (jsonBody \ "statusCode").as[Int] mustBe BAD_REQUEST
-      (jsonBody \ "message").as[String] mustBe "Cannot parse parameter offset as Int: For input string: \"not-a-number\""
+      (jsonBody \ "message")
+        .as[String] mustBe "Cannot parse parameter offset as Int: For input string: \"not-a-number\""
     }
 
     "return 400 when the updated-on parameter is malformed" in {
@@ -205,7 +202,8 @@ class UpdatedPrintSuppressionsControllerISpec extends PlaySpec with TestServer w
     }
 
     "return 400 when the updated-on parameter is not a date in the past" in {
-      val response = get(preferencesSaIndividualPrintSuppression(Some(LocalDate.now.toString("yyyy-MM-dd")), None, None))
+      val response =
+        get(preferencesSaIndividualPrintSuppression(Some(LocalDate.now.toString("yyyy-MM-dd")), None, None))
       response.status mustBe BAD_REQUEST
 
       val jsonBody = Json.parse(response.body)
@@ -224,5 +222,3 @@ class UpdatedPrintSuppressionsControllerISpec extends PlaySpec with TestServer w
   }
 
 }
-
-

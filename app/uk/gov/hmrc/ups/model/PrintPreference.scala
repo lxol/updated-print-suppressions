@@ -31,7 +31,7 @@ object UpdatedPrintPreferences {
 case class PrintPreference(id: String, idType: String, formIds: List[String]) {
   def convertIdType: PrintPreference = idType match {
     case "sautr" => this.copy(idType = "utr")
-    case _ => this
+    case _       => this
   }
 }
 

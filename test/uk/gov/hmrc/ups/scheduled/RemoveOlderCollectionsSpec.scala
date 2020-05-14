@@ -29,14 +29,15 @@ class RemoveOlderCollectionsSpec extends PlaySpec with ScalaFutures {
 
   "remove older collections" should {
     "remove collection older than n days" in new SetUp {
-      private val expectedResults = (2 to 4).map { x => repoName(x) }.toList
+      private val expectedResults = (2 to 4).map { x =>
+        repoName(x)
+      }.toList
 
       private val totals =
-        compose(listRepoNames, removeRepoColls(expectedResults, _), filterUpsCollectionsOnly(_, expirationPeriod)).
-          futureValue
+        compose(listRepoNames, removeRepoColls(expectedResults, _), filterUpsCollectionsOnly(_, expirationPeriod)).futureValue
 
       totals.failures mustBe List.empty
-      totals.successes.map { _.collectionName } must contain only(expectedResults: _*)
+      totals.successes.map { _.collectionName } must contain only (expectedResults: _*)
     }
 
     "perform no deletions when provided an empty list of names" in new SetUp {
@@ -49,22 +50,25 @@ class RemoveOlderCollectionsSpec extends PlaySpec with ScalaFutures {
 
     "removes collections independently, allowing for partial success" in new SetUp {
       val (failures, successes) =
-        compose( listRepoNames, removeRepoColls(List(repoName(3)), _), filterUpsCollectionsOnly(_, expirationPeriod)).
-          map { totals => (totals.failures.map(_.collectionName), totals.successes.map(_.collectionName)) }.
-          futureValue
+        compose(listRepoNames, removeRepoColls(List(repoName(3)), _), filterUpsCollectionsOnly(_, expirationPeriod)).map { totals =>
+          (totals.failures.map(_.collectionName), totals.successes.map(_.collectionName))
+        }.futureValue
 
-      failures must contain only(repoName(2), repoName(4))
+      failures must contain only (repoName(2), repoName(4))
       successes must contain only repoName(3)
     }
 
   }
 
   trait SetUp extends SelectAndRemove with FilterSetUp {
-    def listRepoNames(): Future[List[String]] = Future.successful((0 to 4).map { increment => repoName(increment) }.toList)
+    def listRepoNames(): Future[List[String]] =
+      Future.successful((0 to 4).map { increment =>
+        repoName(increment)
+      }.toList)
 
-    def removeRepoColls(successfulNames : List[String], valueToCheck : String) =
-      if (successfulNames.contains(valueToCheck)) Future { () }
-      else Future.failed(new RuntimeException(s"unexpected value $valueToCheck"))
+    def removeRepoColls(successfulNames: List[String], valueToCheck: String) =
+      if (successfulNames.contains(valueToCheck)) Future { () } else
+        Future.failed(new RuntimeException(s"unexpected value $valueToCheck"))
   }
 }
 
@@ -79,11 +83,12 @@ class DeleteCollectionFilterSpec extends PlaySpec {
     }
 
     "throw exception if name does not match updated_print_suppressions" in new FilterSetUp {
-      an [Exception] should be thrownBy filterUpsCollectionsOnly("randomCollectionName", expirationPeriod)
+      an[Exception] should be thrownBy filterUpsCollectionsOnly("randomCollectionName", expirationPeriod)
     }
   }
 }
 trait FilterSetUp extends DeleteCollectionFilter {
   val expirationPeriod: FiniteDuration = 2 days
-  def repoName(daysToDecrement : Int) : String = UpdatedPrintSuppressions.repoNameTemplate(LocalDate.now().minusDays(daysToDecrement))
+  def repoName(daysToDecrement: Int): String =
+    UpdatedPrintSuppressions.repoNameTemplate(LocalDate.now().minusDays(daysToDecrement))
 }

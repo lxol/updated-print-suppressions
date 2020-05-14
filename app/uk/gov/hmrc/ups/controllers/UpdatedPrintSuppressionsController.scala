@@ -16,20 +16,22 @@
 
 package uk.gov.hmrc.ups.controllers
 
-import javax.inject.{Inject, Singleton}
+import javax.inject.{ Inject, Singleton }
 import play.api.mvc._
 import play.modules.reactivemongo.ReactiveMongoComponent
 import uk.gov.hmrc.play.bootstrap.controller.BackendController
 import uk.gov.hmrc.ups.controllers.bind.PastLocalDateBindable
-import uk.gov.hmrc.ups.model.{Limit, PastLocalDate}
+import uk.gov.hmrc.ups.model.{ Limit, PastLocalDate }
 import uk.gov.hmrc.ups.repository.MongoCounterRepository
 
 import scala.concurrent.ExecutionContext
 
 @Singleton
-class UpdatedPrintSuppressionsController @Inject()
-(mongoComponent: ReactiveMongoComponent, mongoCounterRepository: MongoCounterRepository, cc: ControllerComponents)
-(implicit ec: ExecutionContext) extends BackendController(cc) with UpdatedOn {
+class UpdatedPrintSuppressionsController @Inject()(
+  mongoComponent: ReactiveMongoComponent,
+  mongoCounterRepository: MongoCounterRepository,
+  cc: ControllerComponents)(implicit ec: ExecutionContext)
+    extends BackendController(cc) with UpdatedOn {
 
   lazy override val reactiveMongoComponent: ReactiveMongoComponent = mongoComponent
   lazy override val counterRepository: MongoCounterRepository = mongoCounterRepository

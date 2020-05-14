@@ -17,7 +17,7 @@
 package uk.gov.hmrc.ups.controllers
 
 import play.modules.reactivemongo.ReactiveMongoComponent
-import uk.gov.hmrc.mongo.{MongoConnector, MongoSpecSupport}
+import uk.gov.hmrc.mongo.{ MongoConnector, MongoSpecSupport }
 
 trait MongoSupport extends MongoSpecSupport {
 

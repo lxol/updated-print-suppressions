@@ -16,9 +16,9 @@
 
 package uk.gov.hmrc.ups.repository
 
-import org.joda.time.{DateTime, LocalDate}
+import org.joda.time.{ DateTime, LocalDate }
 import org.scalatest.BeforeAndAfterEach
-import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
+import org.scalatest.concurrent.{ IntegrationPatience, ScalaFutures }
 import org.scalatestplus.play.PlaySpec
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.test.Helpers._
@@ -27,20 +27,20 @@ import uk.gov.hmrc.time.DateTimeUtils
 import uk.gov.hmrc.ups.controllers.MongoSupport
 import uk.gov.hmrc.ups.model.PrintPreference
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ ExecutionContext, Future }
 
-class UpdatedPrintSuppressionsRepositorySpec extends PlaySpec with MongoSupport with BeforeAndAfterEach with ScalaFutures
-  with IntegrationPatience with GuiceOneAppPerSuite {
+class UpdatedPrintSuppressionsRepositorySpec
+    extends PlaySpec with MongoSupport with BeforeAndAfterEach with ScalaFutures with IntegrationPatience with GuiceOneAppPerSuite {
 
   implicit val hc: HeaderCarrier = HeaderCarrier()
   implicit val ec: ExecutionContext = ExecutionContext.Implicits.global
 
   private val TODAY: LocalDate = new LocalDate()
 
-  def counterRepoStub: MongoCounterRepository = new MongoCounterRepository(testMongoComponent){
+  def counterRepoStub: MongoCounterRepository = new MongoCounterRepository(testMongoComponent) {
     var counter: Int = -1
 
-    override def next(counterName:String)(implicit ec: ExecutionContext): Future[Int] = {
+    override def next(counterName: String)(implicit ec: ExecutionContext): Future[Int] = {
       counter = counter + 1
       Future(counter)(ec)
     }
@@ -51,7 +51,8 @@ class UpdatedPrintSuppressionsRepositorySpec extends PlaySpec with MongoSupport 
     await(new MongoCounterRepository(testMongoComponent).removeAll())
   }
 
-  def toCounterAndPreference(ups: UpdatedPrintSuppressions): (Int, PrintPreference, DateTime) = (ups.counter, ups.printPreference, ups.updatedAt)
+  def toCounterAndPreference(ups: UpdatedPrintSuppressions): (Int, PrintPreference, DateTime) =
+    (ups.counter, ups.printPreference, ups.updatedAt)
 
   "UpdatedPrintSuppressionsRepository" should {
 
@@ -74,10 +75,10 @@ class UpdatedPrintSuppressionsRepositorySpec extends PlaySpec with MongoSupport 
     "find and return all records within a range" in {
 
       val repository = new UpdatedPrintSuppressionsRepository(testMongoComponent, TODAY, counterRepoStub)
-      0 to 9 foreach(n => await(repository.insert(PrintPreference(s"id_$n","a type", List.empty), now)))
+      0 to 9 foreach (n => await(repository.insert(PrintPreference(s"id_$n", "a type", List.empty), now)))
       repository.find(0, 2).futureValue mustBe List(
-        PrintPreference("id_0","a type", List.empty),
-        PrintPreference("id_1","a type", List.empty)
+        PrintPreference("id_0", "a type", List.empty),
+        PrintPreference("id_1", "a type", List.empty)
       )
     }
 
@@ -99,18 +100,21 @@ class UpdatedPrintSuppressionsRepositorySpec extends PlaySpec with MongoSupport 
 
       val repository = new UpdatedPrintSuppressionsRepository(testMongoComponent, TODAY, counterRepoStub)
 
-     await(
-       Future.sequence(
-         List(
-           repository.insert(PrintPreference(utr, "someType", List.empty), now),
-           repository.insert(PrintPreference(utr, "someType", List("something")), now.plusMillis(1))
-         )
-       )
-     )
+      await(
+        Future.sequence(
+          List(
+            repository.insert(PrintPreference(utr, "someType", List.empty), now),
+            repository.insert(PrintPreference(utr, "someType", List("something")), now.plusMillis(1))
+          )
+        )
+      )
 
-      repository.findAll().map(
-        _.find(_.printPreference.id == utr).map(_.printPreference.formIds)
-      ).futureValue mustBe Some(List("something"))
+      repository
+        .findAll()
+        .map(
+          _.find(_.printPreference.id == utr).map(_.printPreference.formIds)
+        )
+        .futureValue mustBe Some(List("something"))
     }
 
     "not throw an duplicate key error with near simultaneous confirms" in {
@@ -120,13 +124,14 @@ class UpdatedPrintSuppressionsRepositorySpec extends PlaySpec with MongoSupport 
       val repository = new UpdatedPrintSuppressionsRepository(testMongoComponent, TODAY, counterRepoStub)
 
       await(
-       Future.sequence(list.map(_ =>
-         repository.insert(PrintPreference(utr, "someType", List("1")), now))
-       )
+        Future.sequence(list.map(_ => repository.insert(PrintPreference(utr, "someType", List("1")), now)))
       )
-      repository.findAll().map(
-        _.find(_.printPreference.id == utr).map(_.printPreference.formIds)
-      ).futureValue mustBe Some(List("1"))
+      repository
+        .findAll()
+        .map(
+          _.find(_.printPreference.id == utr).map(_.printPreference.formIds)
+        )
+        .futureValue mustBe Some(List("1"))
     }
   }
 
@@ -144,9 +149,12 @@ class UpdatedPrintSuppressionsRepositorySpec extends PlaySpec with MongoSupport 
       val repositoryT0 = new MongoCounterRepository(testMongoComponent)
       await(repositoryT0.next("test-counter"))
       val repositoryT1 = new MongoCounterRepository(testMongoComponent)
-      repositoryT1.findAll().map {
-        _.headOption.map(head => (head.value, head.name))
-      }.futureValue mustBe Some((1, "test-counter"))
+      repositoryT1
+        .findAll()
+        .map {
+          _.headOption.map(head => (head.value, head.name))
+        }
+        .futureValue mustBe Some((1, "test-counter"))
     }
 
     "increment and return the next value" in {
@@ -155,9 +163,12 @@ class UpdatedPrintSuppressionsRepositorySpec extends PlaySpec with MongoSupport 
       await(repository.next("test-counter"))
 
       repository.count.futureValue mustBe 1
-      repository.findAll().map {
-        _.headOption.map(head => (head.value, head.name))
-      }.futureValue mustBe Some((2, "test-counter"))
+      repository
+        .findAll()
+        .map {
+          _.headOption.map(head => (head.value, head.name))
+        }
+        .futureValue mustBe Some((2, "test-counter"))
     }
   }
 

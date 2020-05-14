@@ -26,19 +26,19 @@ import scala.util.Try
 
 case class PastLocalDateBindable(shouldValidatePastDate: Boolean) extends QueryStringBindable[PastLocalDate] {
 
-  def bind(key: String, params: Map[String, Seq[String]]): Option[Either[String, PastLocalDate]] = {
-    params.get(key).flatMap(_.headOption).map {
-      date: String => Try {
+  def bind(key: String, params: Map[String, Seq[String]]): Option[Either[String, PastLocalDate]] =
+    params.get(key).flatMap(_.headOption).map { date: String =>
+      Try {
         DateConverter.parseToLocalDate(date) match {
-          case aDate if !shouldValidatePastDate                                  => Right(PastLocalDate(aDate))
-          case aDate if shouldValidatePastDate && aDate.isBefore(LocalDate.now)  => Right(PastLocalDate(aDate))
-          case _                               => Left("updated-on parameter can only be used with dates in the past")
+          case aDate if !shouldValidatePastDate                                 => Right(PastLocalDate(aDate))
+          case aDate if shouldValidatePastDate && aDate.isBefore(LocalDate.now) => Right(PastLocalDate(aDate))
+          case _                                                                => Left("updated-on parameter can only be used with dates in the past")
         }
       } recover {
         case e: Exception => Left("updated-on parameter is in the wrong format. Should be (yyyy-MM-dd)")
       } get
     }
-  }
 
-  def unbind(key: String, date: PastLocalDate): String = QueryStringBindable.bindableString.unbind(key, DateConverter.formatToString(date.value))
+  def unbind(key: String, date: PastLocalDate): String =
+    QueryStringBindable.bindableString.unbind(key, DateConverter.formatToString(date.value))
 }

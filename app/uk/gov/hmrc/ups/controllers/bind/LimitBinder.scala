@@ -23,18 +23,18 @@ import scala.util.Try
 
 trait LimitBinder extends QueryStringBindable[Limit] {
 
-  def bind(key: String, params: Map[String, Seq[String]]): Option[Either[String, Limit]] = {
-    params.get(key).flatMap(_.headOption).map { l: String => Try {
-      l.toInt match {
-        case limit if limit < 0 => Left("limit parameter is less than zero")
-        case limit if limit > Limit.max.value => Left(s"limit parameter cannot be bigger than ${Limit.max.value}")
-        case limit => Right(Limit(limit))
-      }
-    } recover {
-      case _: Exception => Left("Cannot parse parameter limit as Int")
-    } get
+  def bind(key: String, params: Map[String, Seq[String]]): Option[Either[String, Limit]] =
+    params.get(key).flatMap(_.headOption).map { l: String =>
+      Try {
+        l.toInt match {
+          case limit if limit < 0               => Left("limit parameter is less than zero")
+          case limit if limit > Limit.max.value => Left(s"limit parameter cannot be bigger than ${Limit.max.value}")
+          case limit                            => Right(Limit(limit))
+        }
+      } recover {
+        case _: Exception => Left("Cannot parse parameter limit as Int")
+      } get
     }
-  }
 
   def unbind(key: String, limit: Limit): String = QueryStringBindable.bindableInt.unbind(key, limit.value)
 }

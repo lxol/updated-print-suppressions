@@ -21,21 +21,19 @@ import play.api.Configuration
 import play.api.http.Status._
 import play.api.libs.json.Json.toJson
 import play.api.mvc.Results._
-import play.api.mvc.{RequestHeader, Result}
+import play.api.mvc.{ RequestHeader, Result }
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
 import uk.gov.hmrc.play.bootstrap.config.HttpAuditEvent
-import uk.gov.hmrc.play.bootstrap.http.{ErrorResponse, JsonErrorHandler}
+import uk.gov.hmrc.play.bootstrap.http.{ ErrorResponse, JsonErrorHandler }
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ ExecutionContext, Future }
 
-class ErrorHandler @Inject()(
-                              auditConnector: AuditConnector,
-                              httpAuditEvent: HttpAuditEvent,
-                              configuration: Configuration)(implicit ec: ExecutionContext) extends JsonErrorHandler(auditConnector,httpAuditEvent,configuration) {
+class ErrorHandler @Inject()(auditConnector: AuditConnector, httpAuditEvent: HttpAuditEvent, configuration: Configuration)(implicit ec: ExecutionContext)
+    extends JsonErrorHandler(auditConnector, httpAuditEvent, configuration) {
 
   import httpAuditEvent.dataEvent
 
-  override def onClientError(request: RequestHeader, statusCode: Int, message: String): Future[Result] = {
+  override def onClientError(request: RequestHeader, statusCode: Int, message: String): Future[Result] =
     statusCode match {
       case BAD_REQUEST =>
         auditConnector.sendEvent(
@@ -49,7 +47,5 @@ class ErrorHandler @Inject()(
         Future.successful(BadRequest(toJson(ErrorResponse(BAD_REQUEST, message))))
       case _ => super.onClientError(request, statusCode, message)
     }
-  }
 
 }
-

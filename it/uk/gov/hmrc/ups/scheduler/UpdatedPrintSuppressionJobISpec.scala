@@ -30,7 +30,7 @@ import uk.gov.hmrc.ups.model.PrintPreference
 import uk.gov.hmrc.ups.repository.UpdatedPrintSuppressions
 import uk.gov.hmrc.ups.scheduled.jobs.UpdatedPrintSuppressionJob
 import uk.gov.hmrc.ups.utils.Generate
-import uk.gov.hmrc.workitem.{PermanentlyFailed, Succeeded}
+import uk.gov.hmrc.workitem.{ PermanentlyFailed, Succeeded }
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -107,7 +107,7 @@ class UpdatedPrintSuppressionJobISpec extends UpdatedPrintSuppressionTestServer 
         post(urlMatching("/preferences/updated-print-suppression/pull-work-item"))
           .inScenario("ALL")
           .whenScenarioStateIs(Scenario.STARTED)
-            .willReturn(aResponse().withFault(Fault.EMPTY_RESPONSE))
+          .willReturn(aResponse().withFault(Fault.EMPTY_RESPONSE))
       )
 
       await(updatedPrintSuppressionJob.executeInLock)

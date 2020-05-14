@@ -18,13 +18,13 @@ package uk.gov.hmrc.ups.controllers.admin
 
 import org.scalatest.BeforeAndAfterEach
 import org.scalatestplus.play.PlaySpec
-import play.api.libs.json.{JsArray, JsValue, Json}
+import play.api.libs.json.{ JsArray, JsValue, Json }
 import play.api.libs.ws.WSResponse
 import play.api.test.Helpers._
 import play.modules.reactivemongo.ReactiveMongoComponent
-import uk.gov.hmrc.ups.controllers.{TestServer, TestSetup}
+import uk.gov.hmrc.ups.controllers.{ TestServer, TestSetup }
 import uk.gov.hmrc.ups.model.PrintPreference
-import uk.gov.hmrc.ups.repository.{MongoCounterRepository, UpdatedPrintSuppressions}
+import uk.gov.hmrc.ups.repository.{ MongoCounterRepository, UpdatedPrintSuppressions }
 
 import scala.concurrent.Future
 
@@ -36,11 +36,16 @@ class AdminControllerISpec extends PlaySpec with TestServer with BeforeAndAfterE
       lazy override val reactiveMongoComponent: ReactiveMongoComponent = testMongoComponent
       lazy override val mongoCounterRepository: MongoCounterRepository = testCounterRepository
       private val preference = PrintPreference("someId", "someType", List("f1"))
-      await(wsUrl("/preferences/sa/individual/print-suppression").withQueryStringParameters("date" -> yesterdayAsString).post(Json.toJson(preference)))
+      await(
+        wsUrl("/preferences/sa/individual/print-suppression")
+          .withQueryStringParameters("date" -> yesterdayAsString)
+          .post(Json.toJson(preference)))
 
       private val all: Future[List[UpdatedPrintSuppressions]] = repoYesterday.findAll()
 
-      await(all).map { x => (x.counter, preference) } mustBe List((1, preference))
+      await(all).map { x =>
+        (x.counter, preference)
+      } mustBe List((1, preference))
       dropTestCollection(repoYesterday.collection.name)
     }
 
@@ -51,19 +56,19 @@ class AdminControllerISpec extends PlaySpec with TestServer with BeforeAndAfterE
       private val ppOne = PrintPreference("11111111", "someType", List("f1", "f2"))
       await(repoToday.insert(ppOne, today.toDateTimeAtStartOfDay))
 
-      private val response: WSResponse = get(preferencesSaIndividualPrintSuppression(Some(todayString), None, None, isAdmin = true))
+      private val response: WSResponse =
+        get(preferencesSaIndividualPrintSuppression(Some(todayString), None, None, isAdmin = true))
       private val jsonBody: JsValue = Json.parse(response.body)
       Json.prettyPrint(jsonBody)
       (jsonBody \ "pages").as[Int] mustBe 1
       (jsonBody \ "updates").as[JsArray].value.size mustBe 1
-      (jsonBody \ "updates") (0).as[PrintPreference] mustBe ppOne
-      ((jsonBody \ "updates") (0) \ "id").as[String] mustBe "11111111"
-      ((jsonBody \ "updates") (0) \ "idType").as[String] mustBe "someType"
-      ((jsonBody \ "updates") (0) \ "formIds") (0).as[String] mustBe "f1"
-      ((jsonBody \ "updates") (0) \ "formIds") (1).as[String] mustBe "f2"
+      (jsonBody \ "updates")(0).as[PrintPreference] mustBe ppOne
+      ((jsonBody \ "updates")(0) \ "id").as[String] mustBe "11111111"
+      ((jsonBody \ "updates")(0) \ "idType").as[String] mustBe "someType"
+      ((jsonBody \ "updates")(0) \ "formIds")(0).as[String] mustBe "f1"
+      ((jsonBody \ "updates")(0) \ "formIds")(1).as[String] mustBe "f2"
       dropTestCollection(repoToday.collection.name)
     }
   }
 
 }
-

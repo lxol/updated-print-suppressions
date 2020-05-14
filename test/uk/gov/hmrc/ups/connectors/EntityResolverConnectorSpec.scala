@@ -19,7 +19,7 @@ package uk.gov.hmrc.ups.connectors
 import org.mockito.Matchers._
 import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfterEach
-import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
+import org.scalatest.concurrent.{ IntegrationPatience, ScalaFutures }
 import org.scalatestplus.mockito.MockitoSugar
 import org.scalatestplus.play.PlaySpec
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
@@ -28,21 +28,23 @@ import play.api.http.Status
 import play.api.inject.bind
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.libs.json.Json
-import uk.gov.hmrc.domain.{Nino, SaUtr}
-import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
+import uk.gov.hmrc.domain.{ Nino, SaUtr }
+import uk.gov.hmrc.http.{ HeaderCarrier, HttpResponse }
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
-import uk.gov.hmrc.ups.model.{Entity, EntityId}
+import uk.gov.hmrc.ups.model.{ Entity, EntityId }
 import uk.gov.hmrc.ups.utils.Generate
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ ExecutionContext, Future }
 
-class EntityResolverConnectorSpec extends PlaySpec with MockitoSugar with ScalaFutures with IntegrationPatience
-  with GuiceOneAppPerSuite with BeforeAndAfterEach {
+class EntityResolverConnectorSpec
+    extends PlaySpec with MockitoSugar with ScalaFutures with IntegrationPatience with GuiceOneAppPerSuite with BeforeAndAfterEach {
 
   val mockHttpClient: HttpClient = mock[HttpClient]
 
-  override def fakeApplication(): Application = new GuiceApplicationBuilder()
-    .overrides(bind[HttpClient].to(mockHttpClient)).build()
+  override def fakeApplication(): Application =
+    new GuiceApplicationBuilder()
+      .overrides(bind[HttpClient].to(mockHttpClient))
+      .build()
 
   override def beforeEach(): Unit = {
     super.beforeEach()
@@ -51,28 +53,31 @@ class EntityResolverConnectorSpec extends PlaySpec with MockitoSugar with ScalaF
 
   "calling entity resolver get entity endpoint" should {
     "return an entity matching the given entityId" in new TestCase {
-      when(mockHttpClient.GET[HttpResponse](any())(any(),any(),any())).thenReturn(Future.successful(HttpResponse(Status.OK, Some(Json.toJson(entity)))))
+      when(mockHttpClient.GET[HttpResponse](any())(any(), any(), any()))
+        .thenReturn(Future.successful(HttpResponse(Status.OK, Some(Json.toJson(entity)))))
 
-      connector.getTaxIdentifiers(randomEntityId).futureValue must be (Right(Some(entity)))
+      connector.getTaxIdentifiers(randomEntityId).futureValue must be(Right(Some(entity)))
 
-      verify(mockHttpClient).GET[HttpResponse](any())(any(),any(),any())
+      verify(mockHttpClient).GET[HttpResponse](any())(any(), any(), any())
     }
 
     "return None if no entry matching entityId" in new TestCase {
-      when(mockHttpClient.GET[HttpResponse](any())(any(),any(),any())).thenReturn(Future.successful(HttpResponse(Status.NOT_FOUND)))
+      when(mockHttpClient.GET[HttpResponse](any())(any(), any(), any()))
+        .thenReturn(Future.successful(HttpResponse(Status.NOT_FOUND)))
 
-      connector.getTaxIdentifiers(randomEntityId).futureValue must be (Right(None))
+      connector.getTaxIdentifiers(randomEntityId).futureValue must be(Right(None))
 
-      verify(mockHttpClient).GET[HttpResponse](any())(any(),any(),any())
+      verify(mockHttpClient).GET[HttpResponse](any())(any(), any(), any())
     }
 
     "handle unexpected response from preferences" in new TestCase {
       val expectedStatus: Int = Status.INTERNAL_SERVER_ERROR
-      when(mockHttpClient.GET[HttpResponse](any())(any(),any(),any())).thenReturn(Future.successful(HttpResponse(expectedStatus)))
+      when(mockHttpClient.GET[HttpResponse](any())(any(), any(), any()))
+        .thenReturn(Future.successful(HttpResponse(expectedStatus)))
 
-      connector.getTaxIdentifiers(randomEntityId).futureValue must be (Left(expectedStatus))
+      connector.getTaxIdentifiers(randomEntityId).futureValue must be(Left(expectedStatus))
 
-      verify(mockHttpClient).GET[HttpResponse](any())(any(),any(),any())
+      verify(mockHttpClient).GET[HttpResponse](any())(any(), any(), any())
     }
   }
 

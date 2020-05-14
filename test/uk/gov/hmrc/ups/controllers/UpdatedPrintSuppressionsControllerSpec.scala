@@ -27,7 +27,7 @@ class UpdatedPrintSuppressionsControllerSpec extends PlaySpec with GuiceOneAppPe
 
   "UpdatedPrintSuppressionsController" should {
     "" in {
-      val result = controller.list(None,None)
+      val result = controller.list(None, None)
       result mustNot be(null)
     }
   }

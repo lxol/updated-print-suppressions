@@ -42,11 +42,11 @@ class RandomDataGenerator extends PlaySpec with GuiceOneAppPerSuite with MongoSp
   "RandomDataGenerator" should {
 
     "create 3M random records in one day" in new TestSetup {
-      val repository: UpdatedPrintSuppressionsRepository = new UpdatedPrintSuppressionsRepository(
-        mongoComponent, new LocalDate().minusDays(1), mongoCounterRepository)
+      val repository: UpdatedPrintSuppressionsRepository =
+        new UpdatedPrintSuppressionsRepository(mongoComponent, new LocalDate().minusDays(1), mongoCounterRepository)
       await(repository.removeAll())
-      0 to 29 foreach {
-        i => {
+      0 to 29 foreach { i =>
+        {
           println(s"Generating records from ${i * BATCH_SIZE} to ${(i * BATCH_SIZE) + BATCH_SIZE}")
           await(repository.bulkInsert(generateBATCH_SIZEEntries(i * BATCH_SIZE)))
         }
@@ -54,9 +54,14 @@ class RandomDataGenerator extends PlaySpec with GuiceOneAppPerSuite with MongoSp
     }
 
     def generateBATCH_SIZEEntries(offset: Int): List[UpdatedPrintSuppressions] =
-      for (n <- List.range(offset, offset + BATCH_SIZE)) yield UpdatedPrintSuppressions(
-        BSONObjectID.generate, n, PrintPreference(s"anId_$n", "anId", List("f1", "f2")), DateTimeUtils.now
-      )
+      for (n <- List.range(offset, offset + BATCH_SIZE))
+        yield
+          UpdatedPrintSuppressions(
+            BSONObjectID.generate,
+            n,
+            PrintPreference(s"anId_$n", "anId", List("f1", "f2")),
+            DateTimeUtils.now
+          )
 
   }
 
